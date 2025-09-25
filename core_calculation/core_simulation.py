@@ -7,7 +7,11 @@ a body at each time step.
 :note: we place ourseslves in a 3D space with x, y and z axis.
 """
 
-# importing libraries
+# importing librariesimport sys
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 from core_calculation.body_definition import Body
 
@@ -21,6 +25,7 @@ class Simulation:
         self.bodies = bodies
         self.dt = dt
         self.forces_to_consider = forces_to_consider
+        self.current_time = 0.0
 
 
     def compute_forces(self):
@@ -41,6 +46,7 @@ class Simulation:
         this function will perform a single time step oof the simulation
         :note: it will applies the Velocity Verlet integration method.
         """
+        self.current_time += self.dt
         # first, we compute the forces acting on each body
         forces = self.compute_forces()
 
@@ -62,4 +68,3 @@ class Simulation:
             # update velocity
             body.velocity += 0.5 * (acceleration + new_acceleration) * self.dt
                 
-        
