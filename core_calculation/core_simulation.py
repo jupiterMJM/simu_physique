@@ -20,6 +20,7 @@ class Simulation:
     def __init__(self, bodies:list[Body], dt:np.float64, forces_to_consider:list[callable]):
         self.bodies = bodies
         self.dt = dt
+        self.forces_to_consider = forces_to_consider
 
 
     def compute_forces(self):
@@ -34,7 +35,7 @@ class Simulation:
                 forces[body_name] += force_vector
         return forces
     
-    
+
     def step(self):
         """
         this function will perform a single time step oof the simulation
@@ -51,9 +52,10 @@ class Simulation:
             # update position
             body.position += body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
 
-            # compute new forces (for velocity update)
-            new_forces = self.compute_forces()
+        # compute new forces (for velocity update)
+        new_forces = self.compute_forces()
 
+        for body in self.bodies:
             # compute new acceleration
             new_acceleration = new_forces[body.name] / body.mass
 
