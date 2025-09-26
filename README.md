@@ -8,3 +8,4 @@ For now, this file readme.md is not written to be user-aimed, but developer-aime
 - we place ourselves in 3D in cartesian space (Earth's curvature not considered, for now at least); the basis
     will be (with your right hand, palm of the hand upwards), vect(x) is the inch, vect(y) is the index, vect(z) is the annular)
 - run the main_simulation file to run the simulation; run main_gui.py file to plot the result in real time!
+- we have to use python > 3.10 bcs of certain operators (such as list|dict)

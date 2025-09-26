@@ -1,0 +1,19 @@
+{
+    "parameters": {
+        "dt": 0.01,
+        "duration": 10
+    },
+
+
+    "objects": {
+        "baloon": {
+            "name" : "baloon",
+            "mass": 0.5
+        }
+    },
+
+    "forces": {
+        "gravitational_force" :
+        {}
+    }
+}

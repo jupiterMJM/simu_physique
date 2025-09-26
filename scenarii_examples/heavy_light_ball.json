@@ -1,0 +1,25 @@
+{
+    "parameters": {
+        "dt": 0.01,
+        "duration": 10
+    },
+
+
+    "objects": {
+        "heavy": {
+            "name" : "heavy_ball",
+            "mass": 10,
+            "init_position": [0, 5, 0]
+        },
+        "light": {
+            "name" : "light_ball",
+            "mass": 1,
+            "init_position": [0, 10, 0]
+        }
+    },
+
+    "forces": {
+        "gravitational_force" :
+        {}
+    }
+}

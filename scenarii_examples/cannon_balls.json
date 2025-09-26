@@ -1,0 +1,40 @@
+{
+    "parameters": {
+        "dt": 0.01,
+        "duration": 10
+    },
+
+
+    "objects": {
+        "ball0": {
+            "name" : "cannon_0",
+            "mass": 5,
+            "init_velocity" : [5, -2, 0]
+        },
+        "ball1": {
+            "name" : "cannon_pi3",
+            "mass": 5,
+            "init_velocity" : [5, -1, 8.66]
+        },
+        "ball2": {
+            "name" : "cannon_pi4",
+            "mass": 5,
+            "init_velocity" : [5, 1, 5]
+        },
+        "ball3": {
+            "name" : "cannon_pi2",
+            "mass": 5,
+            "init_velocity" : [0, 0, 5]
+        },
+        "ball4": {
+            "name" : "cannon_3pi8",
+            "mass": 5,
+            "init_velocity" : [5, 2, 12.07]
+        }
+    },
+
+    "forces": {
+        "gravitational_force" :
+        {}
+    }
+}
