@@ -14,6 +14,7 @@ from core_calculation.body_definition import Body
 from core_calculation.core_simulation import Simulation
 from core_calculation.force_definition import *
 import zmq
+from zmq import Socket
 import time
 from tqdm import tqdm
 import threading    # to manage the communication in a separate thread (especially for the ping of connection)
@@ -42,10 +43,15 @@ def generate_message(simu:Simulation):
 
     return msg_array
 
-# def heartbeat(socket, topic=b"heartbeat/"):
-#     while True:
-#         socket.send_multipart([topic, b"ping"])
-#         time.sleep(1)
+def heartbeat():
+    socket_heartbeat: Socket = context.socket(zmq.PUB)
+    socket_heartbeat.bind("tcp://*:5556")
+    time.sleep(1)
+    while True:
+        socket_heartbeat.send_multipart([b"heartbeat/", b"ping"])
+        time.sleep(1)
+
+
 
 cannon_0 = Body(mass=5, name='cannon_0', init_velocity=np.array([5, -2, 0], dtype='float64'))
 bodies = [cannon_0]
@@ -60,8 +66,11 @@ print(generate_message(simu))
 # setting up ZMQ for communication
 context = zmq.Context()
 socket = context.socket(zmq.PUB)  # Publisher
-socket.bind("tcp://*:5555")
+socket.bind("tcp://*:5557")
 time.sleep(1)  # Wait a moment to ensure the socket is ready
+threading.Thread(target=heartbeat, daemon=True).start()
+
+
 
 input("Press Enter to start the simulation...")
 # running the simulation
@@ -69,10 +78,10 @@ input("Press Enter to start the simulation...")
 try:
     for step in tqdm(range(num_steps)):
         simu.step()
-        for body in bodies:
-            arr = generate_message(simu)
-            socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
-            time.sleep(0.01)
+        arr = generate_message(simu)
+        socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
+        time.sleep(0.01)
+            
             
 except KeyboardInterrupt:
     print("[INFO] Simulation interrupted by user on core calculation.")
