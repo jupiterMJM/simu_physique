@@ -16,6 +16,7 @@ from core_calculation.force_definition import *
 import zmq
 import time
 from tqdm import tqdm
+import threading    # to manage the communication in a separate thread (especially for the ping of connection)
 
 def generate_message(simu:Simulation):
     """
@@ -41,6 +42,10 @@ def generate_message(simu:Simulation):
 
     return msg_array
 
+# def heartbeat(socket, topic=b"heartbeat/"):
+#     while True:
+#         socket.send_multipart([topic, b"ping"])
+#         time.sleep(1)
 
 cannon_0 = Body(mass=5, name='cannon_0', init_velocity=np.array([5, -2, 0], dtype='float64'))
 bodies = [cannon_0]
@@ -60,8 +65,20 @@ time.sleep(1)  # Wait a moment to ensure the socket is ready
 
 input("Press Enter to start the simulation...")
 # running the simulation
-for step in tqdm(range(num_steps)):
-    simu.step()
-    for body in bodies:
-        arr = generate_message(simu)
-        socket.send(arr, copy=False)  # Send the array without copying
+
+try:
+    for step in tqdm(range(num_steps)):
+        simu.step()
+        for body in bodies:
+            arr = generate_message(simu)
+            socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
+            time.sleep(0.01)
+            
+except KeyboardInterrupt:
+    print("[INFO] Simulation interrupted by user on core calculation.")
+    print("[INFO] Closing the ZMQ connection.")
+    socket.send_multipart([b"control/", b"shutdown"])
+    socket.setsockopt(zmq.LINGER, 5000)  # waiting for everything to be sent
+    socket.close() # Close the socket
+    context.term()  # Terminate the ZMQ context
+    print("[INFO] ZMQ connection closed.")
