@@ -14,27 +14,17 @@ from mpl_toolkits.mplot3d import Axes3D  # enables 3D plots
 
 
 # defining bodies
-# balloon = Body(mass=0.5, name='balloon')
-# bodies = [balloon]
 
-# heavy_ball = Body(mass=10, name='heavy_ball', init_position=np.array([-3, 0, 10], dtype='float64'))
-# light_ball = Body(mass=1, name='light_ball', init_position=np.array([3, 0, 10], dtype='float64'))
-# bodies = [heavy_ball, light_ball]
-
-cannon_0 = Body(mass=5, name='cannon_0', init_velocity=np.array([5, -2, 0], dtype='float64'))
-cannon_pi3 = Body(mass=5, name='cannon_pi3', init_velocity=np.array([5, -1, np.tan(np.pi/3)*5], dtype='float64'))
-cannon_pi4 = Body(mass=5, name='cannon_pi4', init_velocity=np.array([5, 1, np.tan(np.pi/4)*5], dtype='float64'))
-cannon_pi2 = Body(mass=5, name='cannon_pi2', init_velocity=np.array([0, 0, 5], dtype='float64'))
-cannon_3pi8 = Body(mass=5, name='cannon_3pi8', init_velocity=np.array([5, 2, np.tan(3*np.pi/8)*5], dtype='float64'))
-bodies = [cannon_0, cannon_pi3, cannon_pi4, cannon_pi2, cannon_3pi8]
-# bodies = [cannon_0, cannon_pi2]
 
 # defining simulation parameters
 dt = 0.01  # time step in seconds
 simulation_time = 2.0  # total simulation time in seconds
 num_steps = int(simulation_time / dt)
 
-simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
+# simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
+# simu = Simulation(bodies=bodies, forces_to_consider=[(gravitational_force, {"g" : 100})], dt=dt)
+simu = Simulation(json_file="scenarii_examples/cannon_balls.json")
+bodies = simu.bodies
 
 # running the simulation
 historic_positions = {body.name: [] for body in bodies}
