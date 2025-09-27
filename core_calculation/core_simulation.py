@@ -44,7 +44,7 @@ class Simulation:
         if json_file is None:
             self.bodies = bodies
             self.dt = dt
-            if type(forces_to_consider[0]) is callable:
+            if type(forces_to_consider[0]) is not tuple:
                 # e.g. : forces_to_consider=[gravitational_force]
                 self.forces_to_consider = {elt.__name__ : (elt, {}) for elt in forces_to_consider}
             else:
