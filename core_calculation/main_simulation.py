@@ -20,9 +20,29 @@ from tqdm import tqdm
 import threading    # to manage the communication in a separate thread (especially for the ping of connection)
 
 
+#############################################################################
+## GLOBAL VARIABLE used throughout the code
+## note: you do not need to modify what is here
+#############################################################################
 do_heartbeat = True
 
+# Flag to indicate whether the simulation should start
+start_simulation = threading.Event()
 
+# setting up ZMQ for communication; one socket for sending data, one for receiving commands
+context = zmq.Context()
+socket = context.socket(zmq.PUB)  # Publisher
+socket.bind("tcp://*:5557")
+sub_socket = context.socket(zmq.SUB)
+sub_socket.connect("tcp://localhost:5555")
+sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all messages
+#############################################################################
+
+
+#############################################################################
+## GLOBAL FUNCTION
+## note : function used to monitor simulation's behavior but not the simulation itself
+#############################################################################
 def generate_message(simu:Simulation):
     """
     this function will generate a message to send through ZMQ
@@ -58,9 +78,6 @@ def heartbeat():
     socket_heartbeat.close() # Close the socket
     print("[INFO] Heartbeat thread terminated.")
 
-# Flag to indicate whether the simulation should start
-start_simulation = threading.Event()
-
 def wait_for_client_message():
     """Wait for a message from the ZMQ client to start the simulation."""
     
@@ -92,10 +109,15 @@ def wait_for_user_input():
     except:
         start_simulation.set()
         print("[INFO] Simulation interrupted by user while waiting for input.")
-    
+#############################################################################  
 
 
+#############################################################################
+## MAIN CODE
+## note: this is where the simulation is defined and run
+#############################################################################
 
+# DEFINITION OF THE SIMULATION
 cannon_0 = Body(mass=5, name='cannon_0', init_velocity=np.array([5, -2, 0], dtype='float64'))
 bodies = [cannon_0]
 
@@ -106,16 +128,10 @@ num_steps = int(simulation_time / dt)
 simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
 print(generate_message(simu))
 
-# setting up ZMQ for communication
-context = zmq.Context()
-socket = context.socket(zmq.PUB)  # Publisher
-socket.bind("tcp://*:5557")
-time.sleep(1)  # Wait a moment to ensure the socket is ready
+# START HEARTBEAT THREAD
 thread_hb = threading.Thread(target=heartbeat, daemon=True).start()
 
-sub_socket = context.socket(zmq.SUB)
-sub_socket.connect("tcp://localhost:5555")
-sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all messages
+# WAITING FOR THE START COMMAND
 # condition before beginning the simulation : either the user start in the main simulation cmd or in the zmq-client cmd
 # Wait until the simulation is triggered
 try:
@@ -135,8 +151,8 @@ except KeyboardInterrupt:
     context.term()
     time.sleep(2)
     sys.exit(0)
-# running the simulation
 
+# RUN THE SIMULATION
 try:
     for step in tqdm(range(num_steps)):
         simu.step()
