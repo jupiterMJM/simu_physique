@@ -19,6 +19,10 @@ import time
 from tqdm import tqdm
 import threading    # to manage the communication in a separate thread (especially for the ping of connection)
 
+
+do_heartbeat = True
+
+
 def generate_message(simu:Simulation):
     """
     this function will generate a message to send through ZMQ
@@ -47,9 +51,12 @@ def heartbeat():
     socket_heartbeat: Socket = context.socket(zmq.PUB)
     socket_heartbeat.bind("tcp://*:5556")
     time.sleep(1)
-    while True:
+    while do_heartbeat:
         socket_heartbeat.send_multipart([b"heartbeat/", b"ping"])
         time.sleep(1)
+    socket_heartbeat.setsockopt(zmq.LINGER, 1000)  # waiting for everything to be sent
+    socket_heartbeat.close() # Close the socket
+    print("[INFO] Heartbeat thread terminated.")
 
 
 
@@ -68,7 +75,7 @@ context = zmq.Context()
 socket = context.socket(zmq.PUB)  # Publisher
 socket.bind("tcp://*:5557")
 time.sleep(1)  # Wait a moment to ensure the socket is ready
-threading.Thread(target=heartbeat, daemon=True).start()
+thread_hb = threading.Thread(target=heartbeat, daemon=True).start()
 
 
 
@@ -89,5 +96,11 @@ except KeyboardInterrupt:
     socket.send_multipart([b"control/", b"shutdown"])
     socket.setsockopt(zmq.LINGER, 5000)  # waiting for everything to be sent
     socket.close() # Close the socket
+
+finally:
+    do_heartbeat = False
+    time.sleep(2)
+    # thread should be closed automatically by now
+
     context.term()  # Terminate the ZMQ context
     print("[INFO] ZMQ connection closed.")

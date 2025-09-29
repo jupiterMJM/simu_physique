@@ -1,6 +1,6 @@
 """
 this is the main file for the GUI of the simulation 
-TODO find out why i cannot compare the topic directly with a bytes object
+TODO improve first connexion to pass some info btw the core simu and the GUI
 """
 
 # plotteur.py
