@@ -25,6 +25,7 @@ import threading    # to manage the communication in a separate thread (especial
 ## note: you do not need to modify what is here
 #############################################################################
 do_heartbeat = True
+simulation_is_running = False
 
 # Flag to indicate whether the simulation should start
 start_simulation = threading.Event()
@@ -72,7 +73,10 @@ def heartbeat():
     socket_heartbeat.bind("tcp://*:5556")
     time.sleep(1)
     while do_heartbeat:
-        socket_heartbeat.send_multipart([b"heartbeat/", b"ping"])
+        if not simulation_is_running:
+            socket_heartbeat.send_multipart([b"heartbeat/", b"not_running"])
+        else:
+            socket_heartbeat.send_multipart([b"heartbeat/", b"ping"])
         time.sleep(1)
     socket_heartbeat.setsockopt(zmq.LINGER, 1000)  # waiting for everything to be sent
     socket_heartbeat.close() # Close the socket
@@ -154,6 +158,7 @@ except KeyboardInterrupt:
 
 # RUN THE SIMULATION
 try:
+    simulation_is_running = True
     for step in tqdm(range(num_steps)):
         simu.step()
         arr = generate_message(simu)
