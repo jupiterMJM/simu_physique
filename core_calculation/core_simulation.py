@@ -60,11 +60,11 @@ class Simulation:
 
             # constructing the bodies
             self.bodies = []
-            print(params["objects"])
+            # print(params["objects"])
             for key, body_params in params["objects"].items():
-                print(key, body_params)
+                # print(key, body_params)
                 body = Body(**body_params)
-                print(body)
+                # print(body)
                 self.bodies.append(body)
 
             # constructing the forces
@@ -116,3 +116,36 @@ class Simulation:
             # update velocity
             body.velocity += 0.5 * (acceleration + new_acceleration) * self.dt
                 
+
+    def __repr__(self):
+        return f"Simulation(dt={self.dt}, bodies={self.bodies}, forces_to_consider={list(self.forces_to_consider.keys())})"
+    
+    def all_info_json(self):
+        """
+        this function will generate a json representation of the simulation
+        the representation will be exhaustive. one should be able to run the simulation on this file and get the exact
+        same results
+        :note: two use case for thie function
+        - save the simulation parameters to a file
+        - send the simulation parameters through ZMQ to a GUI (to improve display)
+        :return: str, json representation of the simulation
+        """
+        simu_dict = {
+            "parameters": {
+                "dt": self.dt
+            },
+            "objects": {body.name: {
+                "mass": body.mass,
+                "name": body.name,
+                "init_position": body.position.flatten().tolist(),
+                "init_velocity": body.velocity.flatten().tolist()
+            } for body in self.bodies},
+            "forces": {key: params for key, (func, params) in self.forces_to_consider.items()}
+        }
+        return simu_dict
+    
+
+if __name__ == "__main__":
+    simu = Simulation(json_file="scenarii_examples\cannon_balls.json")
+    print(simu)
+    print(json.dumps(simu.all_info_json(), indent=4))

@@ -35,6 +35,6 @@
 
     "forces": {
         "gravitational_force" :
-        {}
+        {"g": 10}
     }
 }
