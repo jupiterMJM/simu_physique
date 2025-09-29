@@ -58,6 +58,42 @@ def heartbeat():
     socket_heartbeat.close() # Close the socket
     print("[INFO] Heartbeat thread terminated.")
 
+# Flag to indicate whether the simulation should start
+start_simulation = threading.Event()
+
+def wait_for_client_message():
+    """Wait for a message from the ZMQ client to start the simulation."""
+    
+
+    print("Waiting for a message from the client...")
+    while not start_simulation.is_set():
+        try:
+            message = sub_socket.recv_multipart(flags=zmq.NOBLOCK)  # Non-blocking receive
+            print(message)
+            if message[1] == b"start":
+                print("Received 'START' message from client. Starting simulation...")
+                start_simulation.set()  # Signal to start the simulation
+        except zmq.Again:
+            time.sleep(0.1)  # Avoid busy-waiting
+        except KeyboardInterrupt:
+            start_simulation.set()
+            print("[INFO] Simulation interrupted by user while waiting for client message.")
+            break
+
+def wait_for_user_input():
+    """Wait for the user to press Enter to start the simulation."""
+    print("Press Enter to start the simulation...")
+    
+    try:
+        input()  # Wait for user input
+        if not start_simulation.is_set():
+            print("User pressed Enter. Starting simulation...")
+            start_simulation.set()  # Signal to start the simulation
+    except:
+        start_simulation.set()
+        print("[INFO] Simulation interrupted by user while waiting for input.")
+    
+
 
 
 cannon_0 = Body(mass=5, name='cannon_0', init_velocity=np.array([5, -2, 0], dtype='float64'))
@@ -77,9 +113,28 @@ socket.bind("tcp://*:5557")
 time.sleep(1)  # Wait a moment to ensure the socket is ready
 thread_hb = threading.Thread(target=heartbeat, daemon=True).start()
 
-
-
-input("Press Enter to start the simulation...")
+sub_socket = context.socket(zmq.SUB)
+sub_socket.connect("tcp://localhost:5555")
+sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all messages
+# condition before beginning the simulation : either the user start in the main simulation cmd or in the zmq-client cmd
+# Wait until the simulation is triggered
+try:
+    client_thread = threading.Thread(target=wait_for_client_message, daemon=True)
+    input_thread = threading.Thread(target=wait_for_user_input, daemon=True)
+    client_thread.start()
+    input_thread.start()
+    start_simulation.wait()
+except KeyboardInterrupt:
+    print("[INFO] Simulation interrupted by user before starting.")
+    do_heartbeat = False
+    start_simulation.set()  # Ensure any waiting threads can proceed
+    time.sleep(2)
+    socket.close()
+    sub_socket.close()
+    time.sleep(1)
+    context.term()
+    time.sleep(2)
+    sys.exit(0)
 # running the simulation
 
 try:
@@ -97,8 +152,11 @@ except KeyboardInterrupt:
     socket.setsockopt(zmq.LINGER, 5000)  # waiting for everything to be sent
     socket.close() # Close the socket
 
+    sub_socket.close()
+
 finally:
     do_heartbeat = False
+
     time.sleep(2)
     # thread should be closed automatically by now
 

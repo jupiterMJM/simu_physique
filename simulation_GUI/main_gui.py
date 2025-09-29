@@ -38,7 +38,16 @@ poller = zmq.Poller()
 poller.register(sub_heartbeat, zmq.POLLIN)
 poller.register(sub_data, zmq.POLLIN)
 
+return_data_socket = context.socket(zmq.PUB)
+return_data_socket.bind("tcp://*:5555")
+print("Return data socket bound to port 5555.")
+
+
+
 threading.Thread(target=monitor_heartbeat, daemon=True).start()
+
+input("Press Enter to start the GUI and the simulation...")
+return_data_socket.send_multipart([b"control/", b"start"])
 
 while True:
     events = dict(poller.poll(1000))  # timeout 1s
