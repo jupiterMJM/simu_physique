@@ -121,15 +121,16 @@ def wait_for_user_input():
 ## note: this is where the simulation is defined and run
 #############################################################################
 
-# DEFINITION OF THE SIMULATION
+# # DEFINITION OF THE SIMULATION
 cannon_0 = Body(mass=5, name='cannon_0', init_velocity=np.array([5, -2, 0], dtype='float64'))
 bodies = [cannon_0]
 
-# defining simulation parameters
+# # defining simulation parameters
 dt = 0.01  # time step in seconds
 simulation_time = 1000.0  # total simulation time in seconds
 num_steps = int(simulation_time / dt)
 simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
+# simu = Simulation(json_file="scenarii_examples\free_fall.json")
 print(generate_message(simu))
 
 # START HEARTBEAT THREAD
@@ -163,7 +164,7 @@ try:
         simu.step()
         arr = generate_message(simu)
         socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
-        time.sleep(0.01)
+        time.sleep(0.1)
             
             
 except KeyboardInterrupt:
