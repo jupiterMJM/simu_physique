@@ -8,14 +8,19 @@ import zmq
 import numpy as np
 import threading    # to manage the communication in a separate thread (especially for the ping of connection)
 import time
+import pyqtgraph as pg
 
-
-# Global variable
+############################################################
+## GLOBAL VARIABLE
+############################################################
 last_heartbeat = time.time()
 is_simulation_running = threading.Event()
 stop_all_threads = threading.Event()
+############################################################
 
-
+############################################################
+## GLOBAL FUNCTION that will be put in a thread
+############################################################
 def monitor_heartbeat(timeout=3):
     global last_heartbeat
     while not stop_all_threads.is_set():
@@ -79,29 +84,38 @@ def monitor_recv():
 
     print("[CLOSE] Thread monitor_recv terminated.")
 
+############################################################
+
+############################################################
+## ZMQ setup
+############################################################
 context = zmq.Context()
+# socket to subscribe to heartbeat (monitoring the connection)
 sub_heartbeat = context.socket(zmq.SUB)   # Subscriber
-print("Connecting to server...")
 sub_heartbeat.connect("tcp://localhost:5556")
 sub_heartbeat.setsockopt_string(zmq.SUBSCRIBE, "")  # S'abonner à tout
-print("Connected to server.")
 
+# socket to subscribe to data receival
 sub_data = context.socket(zmq.SUB)
 sub_data.connect("tcp://localhost:5557")
 sub_data.setsockopt_string(zmq.SUBSCRIBE, "")
 
+# poller to manage socket both from heartbeat and data
 poller = zmq.Poller()
 poller.register(sub_heartbeat, zmq.POLLIN)
 poller.register(sub_data, zmq.POLLIN)
 
+# socket to send data to the core simulation (to control it)
 return_data_socket = context.socket(zmq.PUB)
 return_data_socket.bind("tcp://*:5555")
 print("Return data socket bound to port 5555.")
 
+# starting the thread to run in the background (and no blocking the main thread)
 thread_hb = threading.Thread(target=monitor_heartbeat, daemon=True)
 thread_hb.start()
 thread_recv = threading.Thread(target=monitor_recv, daemon=True)
 thread_recv.start()
+############################################################
 
 
 time.sleep(1)
