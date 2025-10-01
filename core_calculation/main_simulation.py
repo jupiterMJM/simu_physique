@@ -55,7 +55,7 @@ def generate_message(simu:Simulation):
     then each column will be a body with its parameters (position and velocity)
     TODO on the first communication think about sending all the information about the bodies (mass, name, ...) but only once
     """
-    msg_array = np.zeros((6, len(simu.bodies)), dtype='float64')
+    msg_array = np.zeros((6, len(simu.bodies)+1), dtype='float64')
     # general parameters
     msg_array[0, 0] = simu.dt
     msg_array[1, 0] = simu.current_time
@@ -63,9 +63,9 @@ def generate_message(simu:Simulation):
 
     for i, body in enumerate(simu.bodies):
         # print(body.position.flatten())
-        msg_array[0:3, i] = body.position.flatten()
-        msg_array[3:6, i] = body.velocity.flatten()
-
+        msg_array[0:3, i+1] = body.position.flatten()
+        msg_array[3:6, i+1] = body.velocity.flatten()
+    # print("msg_array:", msg_array)
     return msg_array
 
 def heartbeat():
