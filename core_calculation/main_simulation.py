@@ -21,7 +21,20 @@ import threading    # to manage the communication in a separate thread (especial
 
 
 #############################################################################
-## GLOBAL VARIABLE used throughout the code
+## USER PARAMETERS
+## note: change here to modify behaviour of the calculation
+#############################################################################
+dt = 0.01  # time step in seconds
+simulation_time = 1000.0  # total simulation time in seconds
+
+speed_simulation = 1/1 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
+# eg: 1/2 will mean that the simulation will run at half the speed of real time
+# "max" means the simulation will run as fast as possible (no waiting time)
+#############################################################################
+
+
+#############################################################################
+## GLOBAL VARIABLE used throughout the code NOT FOR USER
 ## note: you do not need to modify what is here
 #############################################################################
 do_heartbeat = True
@@ -38,6 +51,9 @@ socket.bind("tcp://*:5557")
 sub_socket = context.socket(zmq.SUB)
 sub_socket.connect("tcp://localhost:5555")
 sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all messages
+
+freq_send_data_zmq = 5  # in Hz
+time_last_sent = time.time()
 #############################################################################
 
 
@@ -129,16 +145,20 @@ def wait_for_user_input():
 #############################################################################
 
 # # DEFINITION OF THE SIMULATION
-# cannon_0 = Body(mass=5, name='cannon_0', init_velocity=np.array([5, -2, 0], dtype='float64'))
-# bodies = [cannon_0]
-
 # # defining simulation parameters
-dt = 0.01  # time step in seconds
-simulation_time = 1000.0  # total simulation time in seconds
 num_steps = int(simulation_time / dt)
 # simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
-simu = Simulation(json_file="scenarii_examples/heavy_light_ball.json")
+simu = Simulation(json_file="scenarii_examples/cannon_balls.json")
 print(generate_message(simu))
+
+
+# computing the time to wait at each step to get the expected ratio of real time vs simulation time
+if speed_simulation == "max":
+    time_to_wait_for_ratio = 0
+else:
+    aim_time_per_step = dt / speed_simulation
+    actual_time_per_step = simu.benchmark_step()
+    time_to_wait_for_ratio = max(aim_time_per_step - actual_time_per_step, 0)
 
 # START HEARTBEAT THREAD
 thread_hb = threading.Thread(target=heartbeat, daemon=True).start()
@@ -169,9 +189,13 @@ try:
     simulation_is_running = True
     for step in tqdm(range(num_steps)):
         simu.step()
-        arr = generate_message(simu)
-        socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
-        time.sleep(0.1)
+        if time.time() - time_last_sent >= 1.0 / freq_send_data_zmq:
+            time_last_sent = time.time()
+             # Generate and send the message
+            arr = generate_message(simu)
+            socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
+        if time_to_wait_for_ratio > 0:
+            time.sleep(time_to_wait_for_ratio)
             
             
 except KeyboardInterrupt:

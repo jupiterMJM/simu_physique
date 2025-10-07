@@ -22,6 +22,7 @@ import numpy as np
 from core_calculation.body_definition import Body
 from core_calculation.force_definition import *
 import json
+import time
 
 class Simulation:
     """
@@ -89,7 +90,7 @@ class Simulation:
         return forces
     
 
-    def step(self):
+    def step(self, update_bodies:bool=True):
         """
         this function will perform a single time step oof the simulation
         :note: it will applies the Velocity Verlet integration method.
@@ -103,8 +104,12 @@ class Simulation:
             # compute acceleration
             acceleration = forces[body.name] / body.mass
 
-            # update position
-            body.position += body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
+            if update_bodies:
+                # update position
+                body.position += body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
+            else:
+                # only do the computation but not the update (useful for the benchmark)
+                _ = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
 
         # compute new forces (for velocity update)
         new_forces = self.compute_forces()
@@ -113,8 +118,12 @@ class Simulation:
             # compute new acceleration
             new_acceleration = new_forces[body.name] / body.mass
 
-            # update velocity
-            body.velocity += 0.5 * (acceleration + new_acceleration) * self.dt
+            if update_bodies:
+                # update velocity
+                body.velocity += 0.5 * (acceleration + new_acceleration) * self.dt
+            else:
+                # only do the computation but not the update (useful for the benchmark)
+                _ = body.velocity + 0.5 * (acceleration + new_acceleration) * self.dt
                 
 
     def __repr__(self):
@@ -143,6 +152,18 @@ class Simulation:
             "forces": {key: params for key, (func, params) in self.forces_to_consider.items()}
         }
         return simu_dict
+    
+    def benchmark_step(self, n_steps:int=1000):
+        """
+        this function will benchmark the time taken to perform n_steps of the simulation
+        :param n_steps: int, number of steps to perform
+        :return: float, average time per step (in seconds and in the current state of the computer)
+        """
+        start_time = time.time()
+        for _ in range(n_steps):
+            self.step(update_bodies=False)
+        end_time = time.time()
+        return (end_time - start_time)/n_steps  # return average time per step
     
 
 if __name__ == "__main__":
