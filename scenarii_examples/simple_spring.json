@@ -8,27 +8,18 @@
     "objects": {
         "mass": {
             "name" : "mass",
-            "mass": 0.5,
+            "mass": 1,
             "init_position" : [0, 5, 0],
-            "init_velocity" : [0, 0, 10]
-        },
-        "mass2" : {
-            "name" : "mass2",
-            "mass": 0.5,
-            "init_position" : [-4, 2, 0],
-            "init_velocity" : [-5, 0, 0]
-        },
-        "mass3":{
-            "name" : "mass3",
-            "mass": 0.5,
-            "init_position" : [0, 11, 0],
-            "init_velocity" : [0, 0, -10]
+            "init_velocity" : [0, 0, 0]
         }
     },
 
     "forces": {
         "gravitational_force" :
-        {}
+        {},
+        "damping_force":{
+            "k" : 0.1
+        }
     },
 
     "class_forces": {
@@ -38,20 +29,6 @@
             "rest_length": 1,
             "point1": "mass",
             "point2": [0, 0, 0]
-        },
-        "spring2":{
-            "class_name": "Spring",
-            "k": 10,
-            "rest_length": 1,
-            "point1": "mass2",
-            "point2": "mass"
-        },
-        "spring3":{
-            "class_name": "Spring",
-            "k": 10,
-            "rest_length": 1,
-            "point1": "mass3",
-            "point2": "mass2"
         }
     }
 }

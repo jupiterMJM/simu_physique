@@ -27,7 +27,7 @@ import threading    # to manage the communication in a separate thread (especial
 dt = 0.01  # time step in seconds
 simulation_time = 1000.0  # total simulation time in seconds
 
-speed_simulation = 1/5 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
+speed_simulation = 1 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
 # eg: 1/2 will mean that the simulation will run at half the speed of real time
 # "max" means the simulation will run as fast as possible (no waiting time)
 #############################################################################
