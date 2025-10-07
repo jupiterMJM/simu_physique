@@ -17,12 +17,24 @@ from zmq_monitor import ZMQReceiver, context
 
 
 class PlotterGUI:
-    def __init__(self):
+    def __init__(self, receiver: ZMQReceiver = None, dict_simu=None, plot_traj=False):
         # TODO modify the array buffer (not beautiful and not scalable for now)
-        self.N = 50
-        self.history = np.zeros((self.N, 3))  # to store trajectory history
+        self.nb_of_bodies = len(dict_simu['objects'])
+        self.dict_simu = dict_simu
+        self.plot_traj = plot_traj
+        if self.plot_traj:
+            self.N = 50
+            bodies = dict_simu['objects']
+            print(bodies)
+            init_pos = np.array([elt["init_position"] for key, elt in bodies.items()])
+            self.all_history = {elt["name"]: np.zeros((self.N, 3)) for key, elt in bodies.items()} # to store trajectory history
+            for i, elt in enumerate(bodies.items()):
+                cle, dico = elt
+                name = dico["name"]
+                self.all_history[name][0, :] = init_pos[i, :]
         self.num_point = 0
-
+        
+        self.buffer_once_completed = False
         self.app = QApplication(sys.argv)
 
         # Create 3D view
@@ -37,20 +49,24 @@ class PlotterGUI:
         self.view.addItem(g)
 
         # # Scatter plot
-        self.scatter = gl.GLScatterPlotItem(pos=np.array([0, 0, 0]), color=(1, 0, 0, 1), size=5)
+        self.scatter = gl.GLScatterPlotItem(pos=init_pos, color=(1, 0, 0, 1), size=5)
         self.view.addItem(self.scatter)
 
-        self.trajectory = gl.GLLinePlotItem(
-            pos=np.zeros((2, 3)),       # need at least two points to draw the first line
-            color=(1, 1, 0, 1),
-            width=2,
-            antialias=True,
-            mode="line_strip"
-        )
-        self.view.addItem(self.trajectory)
+        self.all_trajectory = {}
+        for i, elt in enumerate(bodies.items()):
+            body_trajectory = gl.GLLinePlotItem(
+                pos=np.zeros((2, 3)),       # need at least two points to draw the first line
+                color=(1, 1, 0, 1),
+                width=2,
+                antialias=True,
+                mode="line_strip"
+            )
+            cle, dico = elt
+            self.all_trajectory[dico["name"]] = body_trajectory
+            self.view.addItem(body_trajectory)
 
         # Background ZMQ thread
-        self.receiver = ZMQReceiver(timeout=5)
+        self.receiver = receiver
         self.receiver.data_received.connect(self.update_plot)
         self.receiver.start()
 
@@ -63,14 +79,26 @@ class PlotterGUI:
         points = matrix_from_zmq[0:3, 1:].T
         # print(matrix_from_zmq)
         self.scatter.setData(pos=points)
-        self.history[self.num_point, :] = points
-        self.num_point = self.num_point + 1
-        self.num_point = self.num_point if self.num_point < self.N else 0
-        # print(self.history)
+        if self.plot_traj:
+            for i, elt in enumerate(self.dict_simu['objects'].items()):
+                # print("elt:", elt)
+                cle, dico = elt
+                name = dico["name"]
+                histo_to_plot = self.all_history[name]
+                if self.buffer_once_completed:
+                    histo_to_plot[self.num_point, :] = points[i, :]
+                    # # TODO essayer de modif le np.vstack pour faire un truc plus propre (eviter de creer un nouveau tableau à chaque fois)
+                    self.all_trajectory[name].setData(pos=np.vstack([histo_to_plot[self.num_point+1:], histo_to_plot[:self.num_point+1]]))
+                else:
+                    histo_to_plot[self.num_point, :] = points[i, :]
+                    self.all_trajectory[name].setData(pos=histo_to_plot[:self.num_point+1])
+            self.num_point = self.num_point + 1
+            if self.num_point >= self.N:
+                self.buffer_once_completed = True
+            self.num_point = self.num_point if self.num_point < self.N else 0
 
-        # TODO essayer de modif le np.vstack pour faire un truc plus propre (eviter de creer un nouveau tableau à chaque fois)
-        self.trajectory.setData(pos=np.vstack([self.history[self.num_point:], self.history[:self.num_point]]))
-        # self.trajectory.setData(pos=self.history[:self.num_point])
+
+            
 
     def run(self):
         sys.exit(self.app.exec_())
@@ -83,8 +111,7 @@ class PlotterGUI:
 ############################################################
 ## TODO modify the return data socket bcs not used anymore for now
 # socket to send data to the core simulation (to control it)
-return_data_socket = context.socket(zmq.PUB)
-return_data_socket.bind("tcp://*:5555")
+
 print("Return data socket bound to port 5555.")
 ############################################################
 
@@ -98,8 +125,14 @@ print("Return data socket bound to port 5555.")
 
 time.sleep(1)
 if __name__ == "__main__":
-    plotter = PlotterGUI()
+    receiver = ZMQReceiver()
+    print("[Starting] function receiver obtain_info_before_run()")
+    json_dict = receiver.obtain_info_before_run()
+    print(json_dict)
+    print(type(json_dict))
+    plotter = PlotterGUI(receiver=receiver, dict_simu=json_dict, plot_traj=True)
     try:
+        
         plotter.run()
     finally:
         plotter.stop()

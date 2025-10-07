@@ -25,6 +25,7 @@ import threading    # to manage the communication in a separate thread (especial
 ## note: you do not need to modify what is here
 #############################################################################
 do_heartbeat = True
+hear_for_client = True
 simulation_is_running = False
 
 # Flag to indicate whether the simulation should start
@@ -87,13 +88,19 @@ def wait_for_client_message():
     
 
     print("Waiting for a message from the client...")
-    while not start_simulation.is_set():
+    while hear_for_client:
+        
         try:
-            message = sub_socket.recv_multipart(flags=zmq.NOBLOCK)  # Non-blocking receive
-            print(message)
-            if message[1] == b"start":
+            topic, message = sub_socket.recv_multipart(flags=zmq.NOBLOCK)  # Non-blocking receive
+            # print(topic, message)
+            if message == b"start":
                 print("Received 'START' message from client. Starting simulation...")
                 start_simulation.set()  # Signal to start the simulation
+
+            elif topic == b"control/" and message == b"giveme_info":
+                json_dict = simu.all_info_json()
+                socket.send_string("info/", flags=zmq.SNDMORE)
+                socket.send_json(json_dict)
         except zmq.Again:
             time.sleep(0.1)  # Avoid busy-waiting
         except KeyboardInterrupt:
@@ -122,15 +129,15 @@ def wait_for_user_input():
 #############################################################################
 
 # # DEFINITION OF THE SIMULATION
-cannon_0 = Body(mass=5, name='cannon_0', init_velocity=np.array([5, -2, 0], dtype='float64'))
-bodies = [cannon_0]
+# cannon_0 = Body(mass=5, name='cannon_0', init_velocity=np.array([5, -2, 0], dtype='float64'))
+# bodies = [cannon_0]
 
 # # defining simulation parameters
 dt = 0.01  # time step in seconds
 simulation_time = 1000.0  # total simulation time in seconds
 num_steps = int(simulation_time / dt)
-simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
-# simu = Simulation(json_file="scenarii_examples\free_fall.json")
+# simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
+simu = Simulation(json_file="scenarii_examples/heavy_light_ball.json")
 print(generate_message(simu))
 
 # START HEARTBEAT THREAD
@@ -178,7 +185,7 @@ except KeyboardInterrupt:
 
 finally:
     do_heartbeat = False
-
+    hear_for_client = False
     time.sleep(2)
     # thread should be closed automatically by now
 

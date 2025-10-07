@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import QApplication
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import sys
+import json
 
 
 context = zmq.Context()
@@ -52,8 +53,33 @@ class ZMQReceiver(QThread):
         self.poller = zmq.Poller()
         self.poller.register(self.sub_heartbeat, zmq.POLLIN)
         self.poller.register(self.sub_data, zmq.POLLIN)
+
+        # socket to send data back to simulation (if needed)
+        self.return_data_socket = context.socket(zmq.PUB)
+        self.return_data_socket.bind("tcp://*:5555")
         
-    
+
+    def obtain_info_before_run(self):
+        """
+        this function is a way to get the exhaustive info from the simulation before starting the run
+        :note it will be used to enhance the display (get the names of the bodies, their masses, ...)
+        """
+        time.sleep(.5)
+        print("Requesting simulation parameters...")
+        self.return_data_socket.send_multipart([b"control/", b"giveme_info"])
+        # wait for response
+        while True:
+            events = dict(self.poller.poll(1000))
+            if self.sub_data in events:
+                msg = self.sub_data.recv_multipart(flags=zmq.NOBLOCK)
+                print(msg)
+                topic, dict_json = msg[0], msg[1]
+                if topic == b"info/":
+                    print("got the info!!!!")
+                    # print(dict_json)
+                    return json.loads(dict_json)
+            time.sleep(0.1)
+
     def run(self):
         while self.zmq_running:
             # checking the heartbeat
