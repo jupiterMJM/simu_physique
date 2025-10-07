@@ -23,6 +23,7 @@ from core_calculation.body_definition import Body
 from core_calculation.force_definition import *
 import json
 import time
+from core_calculation.force_definition_physical_interaction import *
 
 class Simulation:
     """
@@ -30,7 +31,7 @@ class Simulation:
     under the influence of forces.
     """
 
-    def __init__(self, bodies:list[Body]=None, dt:np.float64=None, forces_to_consider:list | list[tuple]=None, json_file:str=None):
+    def __init__(self, bodies:list[Body]=None, dt:np.float64=None, forces_to_consider:list | list[tuple]=None, class_forces_to_consider:list=None, json_file:str=None):
         """
         initiate the simulation
         :param bodies: list of Body objects, the bodies to simulate
@@ -53,6 +54,8 @@ class Simulation:
                 self.forces_to_consider = {elt[0].__name__ : (elt[0], elt[1]) for elt in forces_to_consider}
             # elif type(forces_to_consider) is dict:
             #     assert all([callable(elt[0]) and type(elt[1]) is dict for elt in forces_to_consider.items()]), "forces_to_consider must be a list of callable or a dict of callable and parameters"
+            self.class_forces_to_consider = class_forces_to_consider
+
         else:
             with open(json_file, 'r') as f:
                 params = json.load(f)
@@ -73,6 +76,27 @@ class Simulation:
             for key, value in params["forces"].items():
                 self.forces_to_consider[key] = (eval(key), value)  # we assume that the force function is defined in the local scope
 
+            # constructing the class forces
+            self.class_forces_to_consider = []
+            if "class_forces" in params:
+                for cle, class_force_params in params["class_forces"].items():
+                    class_name = class_force_params.pop("class_name")
+                    point1 = class_force_params.pop("point1")
+                    point2 = class_force_params.pop("point2")
+                    if type(point1) is str:
+                        point1 = next(body for body in self.bodies if body.name == point1)
+                    else:
+                        point1 = np.array(point1, dtype='float64')
+                    class_force_params["point1"] = point1
+
+                    if type(point2) is str:
+                        point2 = next(body for body in self.bodies if body.name == point2)
+                    else:
+                        point2 = np.array(point2, dtype='float64')
+                    class_force_params["point2"] = point2
+                    class_force = eval(class_name)(**class_force_params)
+                    print(class_force)
+                    self.class_forces_to_consider.append(class_force)
 
 
 
@@ -87,6 +111,13 @@ class Simulation:
             force_results = force_func(self.bodies, **params)
             for body_name, force_vector in force_results.items():
                 forces[body_name] += force_vector
+
+        # if there are class forces to consider (e.g. spring forces)
+        for complex_force in self.class_forces_to_consider:
+            force_results = complex_force.compute_force()
+            for body_name, force_vector in force_results.items():
+                if body_name:  # if body_name is False, it means the force is applied to a fixed point in space
+                    forces[body_name] += force_vector
         return forces
     
 
