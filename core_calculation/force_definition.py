@@ -11,12 +11,14 @@ from core_calculation.body_definition import Body
 
 
 # gravitationnal force definition (weight mg force)
-def no_force(bodies:list[Body]) -> dict[str, np.ndarray]:
+def no_force(bodies:list[Body], potential=False) -> dict[str, np.ndarray]:
     """
     this function will compute a zero force acting on each body
     :param bodies: list of bodies in the simulation
     :return: a dictionary with body names as keys and force vectors as values
     """
+    if potential:
+        return -1
     forces = {}
     for body in bodies:
         forces[body.name] = np.array((0, 0, 0), dtype='float64')
@@ -40,7 +42,7 @@ def gravitational_force(bodies:list[Body], g:np.float64=9.81, potential=False) -
             potentials[body.name] = body.mass * g * body.position[2]
         return potentials
 
-def damping_force(bodies:list[Body], k:np.float64|dict=None):
+def damping_force(bodies:list[Body], k:np.float64|dict=None, potential=False):
     """
     this function will compute a damping force acting on each body
     :param bodies: list of bodies in the simulation
@@ -52,6 +54,8 @@ def damping_force(bodies:list[Body], k:np.float64|dict=None):
     :note: k can be linked to the exponential decay of the total mechanical energy as
     k = m/(2tau)ln(1/r) where tau is the time constant of the exponential decay and r the ratio of energy lost after tau
     """
+    if potential:
+        return -1
     forces = {}
     for body in bodies:
         if isinstance(k, dict):

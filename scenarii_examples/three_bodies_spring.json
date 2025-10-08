@@ -9,28 +9,28 @@
         "mass": {
             "name" : "mass",
             "mass": 0.5,
-            "init_position" : [0, 5e-2, 0],
-            "init_velocity" : [0, 0, 1e-2]
+            "init_position" : [0, 0, -10e-2],
+            "init_velocity" : [-1, 0, 0]
         },
         "mass2" : {
             "name" : "mass2",
             "mass": 0.5,
-            "init_position" : [-4e-2, 2e-2, 0],
-            "init_velocity" : [-5e-2, 0, 0]
+            "init_position" : [0, 0, -20e-2],
+            "init_velocity" : [0, 1, 0]
         },
         "mass3":{
             "name" : "mass3",
             "mass": 0.5,
-            "init_position" : [0, 11e-2, 0],
-            "init_velocity" : [0, 0, -1e-2]
+            "init_position" : [0, 0, -30e-2],
+            "init_velocity" : [1, 0, 0]
         }
     },
 
-    "forces": {
-        "gravitational_force" :
-        {},
-        "damping_force":{
-            "k": 0.1
+    "forces":{
+        "gravitational_force":{},
+        "damping_force":
+        {
+            "k":0.1
         }
     },
 

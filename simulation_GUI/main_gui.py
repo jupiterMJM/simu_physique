@@ -10,11 +10,13 @@ import numpy as np
 import time
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from PyQt5.QtWidgets import QApplication
+from PyQt5 import QtCore
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import sys
 from zmq_monitor import ZMQReceiver, context
 from annexe_main_gui import *
+from collections import deque
 
 
 class PlotterGUI:
@@ -34,7 +36,9 @@ class PlotterGUI:
                 cle, dico = elt
                 name = dico["name"]
                 self.all_history[name][0, :] = init_pos[i, :]
-        self.speed_history = {name: np.zeros((self.N, 3)) for name in self.dict_simu['objects'].keys()}
+        self.kinetic_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
+        self.potential_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
+        self.time_current_history = deque(maxlen=self.N*3)
         self.num_point = 0
         
         self.buffer_once_completed = False
@@ -71,13 +75,26 @@ class PlotterGUI:
 
         # Create the second window for kinetic energy
         self.energy_window = pg.GraphicsLayoutWidget(show=True)
-        self.energy_window.setWindowTitle("Kinetic Energy of Bodies")
-        self.energy_plot = self.energy_window.addPlot(title="Kinetic Energy")
+        self.energy_window.setWindowTitle("Energies of Bodies")
+        self.energy_plot = self.energy_window.addPlot(title="Energies")
         self.energy_plot.addLegend()
-        self.energy_curves = {
-            name: self.energy_plot.plot(pen=pg.mkPen(color), name=name)
+        self.kinetic_energy_curves = {
+            name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DashLine), name=f"K_{name}")
             for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
         }
+        self.potential_energy_curves = {
+            name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DotLine), name=f"P_{name}")
+            for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+        }
+        self.mechanical_energy_curves = {
+            name: self.energy_plot.plot(pen=pg.mkPen(color), name=f"E_{name}")
+            for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+        }
+        self.total_mechanical_energy_syst_curve = self.energy_plot.plot(pen=pg.mkPen('w', width=2), name="Total mech. energy")
+        self.energy_plot.setLabel('left', 'Energy', units='J')
+        self.energy_plot.setLabel('bottom', 'Time', units='s')
+        self.energy_plot.showGrid(x=True, y=True)
+
 
 
         # Background ZMQ thread
@@ -96,12 +113,17 @@ class PlotterGUI:
         this function will allow us to update all the plots in one call
         the main usecase is to save history of positions and speeds more easily
         """
+        # print("update_all_plots called", matrix_from_zmq.shape)
+        print(matrix_from_zmq)
         points_position = matrix_from_zmq[0:3, 1:].T
         points_velocity = matrix_from_zmq[3:6, 1:].T
+        potential_energy_bodies = matrix_from_zmq[6, 1:]
         for i, elt in enumerate(self.dict_simu['objects'].items()):
             cle, dico = elt
             self.all_history[dico["name"]][self.num_point, :] = points_position[i, :]
-            self.speed_history[dico["name"]][self.num_point, :] = points_velocity[i, :]
+            self.kinetic_history[dico["name"]].append(0.5 * dico["mass"] * np.sum(points_velocity[i, :]**2))
+            self.potential_history[dico["name"]].append(potential_energy_bodies[i])
+        self.time_current_history.append(matrix_from_zmq[1, 0])
         self.num_point = self.num_point + 1
         if self.num_point >= self.N:
             self.buffer_once_completed = True
@@ -138,11 +160,23 @@ class PlotterGUI:
         Update the kinetic energy plot with the current velocities of the bodies.
         :param velocities: A dictionary with body names as keys and velocity vectors as values.
         """
-        masses = {key: elt["mass"] for key, elt in self.dict_simu['objects'].items()}
-        history_kinetic_energy = compute_kinetic_energy(masses, self.speed_history)
-        for name, curve in self.energy_curves.items():
-            kinetic_energy = history_kinetic_energy[name]
-            curve.setData(kinetic_energy)
+        time_axis = list(self.time_current_history)
+        for name, curve in self.kinetic_energy_curves.items():
+            kinetic_energy = list(self.kinetic_history[name])
+            curve.setData(time_axis, kinetic_energy)
+        for name, curve in self.potential_energy_curves.items():
+            potential_energy = list(self.potential_history[name])
+            curve.setData(time_axis, potential_energy)
+        
+        list_for_total_mech_energy = []
+        for name, curve in self.mechanical_energy_curves.items():
+            mechanical_energy = [k + p for k, p in zip(self.kinetic_history[name], self.potential_history[name])]
+            list_for_total_mech_energy.append(mechanical_energy)
+            curve.setData(time_axis, mechanical_energy)
+        if len(list_for_total_mech_energy) > 0:
+            total_mechanical_energy = [sum(energies) for energies in zip(*list_for_total_mech_energy)]
+        self.total_mechanical_energy_syst_curve.setData(time_axis, total_mechanical_energy)
+        
 
 
             

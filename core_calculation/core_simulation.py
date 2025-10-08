@@ -126,6 +126,7 @@ class Simulation:
         this function will perform a single time step oof the simulation
         :note: it will applies the Velocity Verlet integration method.
         """
+        # print("_"*10)
         self.current_time += self.dt
         # first, we compute the forces acting on each body
         forces = self.compute_forces()
@@ -134,28 +135,35 @@ class Simulation:
         for body in self.bodies:
             # compute acceleration
             acceleration = forces[body.name] / body.mass
-
+            # print("computing accel on", body.name, acceleration)
             if update_bodies:
                 # update position
-                body.position += body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
+
+                body.position = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
             else:
                 # only do the computation but not the update (useful for the benchmark)
                 _ = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
 
+        # TODO there is a bug here when i try to compute the new forces (try with two_bodies_spring and print the whole verbose)
         # compute new forces (for velocity update)
         new_forces = self.compute_forces()
 
         for body in self.bodies:
             # compute new acceleration
+            old_acceleration = forces[body.name] / body.mass
             new_acceleration = new_forces[body.name] / body.mass
-
+            # print("computing NEW accel on", body.name, new_acceleration)
             if update_bodies:
                 # update velocity
-                body.velocity += 0.5 * (acceleration + new_acceleration) * self.dt
+                # print("calcul interm", (old_acceleration + new_acceleration)/2 * self.dt)
+                body.velocity =  body.velocity + (old_acceleration + new_acceleration)/2 * self.dt
+                # body.velocity =  body.velocity + acceleration * self.dt
             else:
                 # only do the computation but not the update (useful for the benchmark)
-                _ = body.velocity + 0.5 * (acceleration + new_acceleration) * self.dt
+                _ = body.velocity +  (old_acceleration + new_acceleration)/2 * self.dt
+                # _ = body.velocity +  acceleration * self.dt
                 
+        # print("x"*10)
 
     def __repr__(self):
         return f"Simulation(dt={self.dt}, bodies={self.bodies}, forces_to_consider={list(self.forces_to_consider.keys())})"
@@ -205,12 +213,14 @@ class Simulation:
         for force_key in self.forces_to_consider:
             force_func, params = self.forces_to_consider[force_key]
             potential_of_force = force_func(self.bodies, **params, potential=True)
+            if potential_of_force == -1: continue
             for body_name, single_potential in potential_of_force.items():
                 potential_energy[body_name] += single_potential
 
         # if there are class forces to consider (e.g. spring forces)
         for complex_force in self.class_forces_to_consider:
             potential_of_force = complex_force.compute_potential()
+            if potential_of_force == -1: continue
             for cle, single_potential in potential_of_force.items():
                 potential_energy[cle] += single_potential
         return potential_energy

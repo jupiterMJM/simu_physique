@@ -127,7 +127,7 @@ class ZMQReceiver(QThread):
 
                 elif topic == b"data/":
                     # print("Data received.")
-                    arr = np.frombuffer(msg, dtype="float64").reshape(6, -1)
+                    arr = np.frombuffer(msg, dtype="float64").reshape(7, -1)
                     # print("arr", arr)
                     self.data_received.emit(arr)  # send to GUI thread
                 
@@ -137,7 +137,7 @@ class ZMQReceiver(QThread):
                 
                 
             except Exception as e:
-                print("ZMQ error:", e)
+                print("ZMQ error (perso line 140):", e)
 
     def stop(self):
         self.simu_running = False
