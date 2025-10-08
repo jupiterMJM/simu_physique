@@ -14,6 +14,7 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import sys
 from zmq_monitor import ZMQReceiver, context
+from annexe_main_gui import *
 
 
 class PlotterGUI:
@@ -22,8 +23,9 @@ class PlotterGUI:
         self.nb_of_bodies = len(dict_simu['objects'])
         self.dict_simu = dict_simu
         self.plot_traj = plot_traj
+        self.N = 50
         if self.plot_traj:
-            self.N = 50
+            
             bodies = dict_simu['objects']
             print(bodies)
             init_pos = np.array([elt["init_position"] for key, elt in bodies.items()])
@@ -32,6 +34,7 @@ class PlotterGUI:
                 cle, dico = elt
                 name = dico["name"]
                 self.all_history[name][0, :] = init_pos[i, :]
+        self.speed_history = {name: np.zeros((self.N, 3)) for name in self.dict_simu['objects'].keys()}
         self.num_point = 0
         
         self.buffer_once_completed = False
@@ -65,14 +68,47 @@ class PlotterGUI:
             self.all_trajectory[dico["name"]] = body_trajectory
             self.view.addItem(body_trajectory)
 
+
+        # Create the second window for kinetic energy
+        self.energy_window = pg.GraphicsLayoutWidget(show=True)
+        self.energy_window.setWindowTitle("Kinetic Energy of Bodies")
+        self.energy_plot = self.energy_window.addPlot(title="Kinetic Energy")
+        self.energy_plot.addLegend()
+        self.energy_curves = {
+            name: self.energy_plot.plot(pen=pg.mkPen(color), name=name)
+            for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+        }
+
+
         # Background ZMQ thread
         self.receiver = receiver
-        self.receiver.data_received.connect(self.update_plot)
+        # self.receiver.data_received.connect(self.update_plot)
+        # self.receiver.data_received.connect(self.update_energy_plot)
+        self.receiver.data_received.connect(self.update_all_plots)
         self.receiver.start()
 
         # Timer just keeps Qt responsive (not strictly required if using signals)
         self.timer = QTimer()
         self.timer.start(100)
+
+    def update_all_plots(self, matrix_from_zmq):
+        """
+        this function will allow us to update all the plots in one call
+        the main usecase is to save history of positions and speeds more easily
+        """
+        points_position = matrix_from_zmq[0:3, 1:].T
+        points_velocity = matrix_from_zmq[3:6, 1:].T
+        for i, elt in enumerate(self.dict_simu['objects'].items()):
+            cle, dico = elt
+            self.all_history[dico["name"]][self.num_point, :] = points_position[i, :]
+            self.speed_history[dico["name"]][self.num_point, :] = points_velocity[i, :]
+        self.num_point = self.num_point + 1
+        if self.num_point >= self.N:
+            self.buffer_once_completed = True
+        self.num_point = self.num_point if self.num_point < self.N else 0
+        # and finally update the plots
+        self.update_plot(matrix_from_zmq)
+        self.update_energy_plot(matrix_from_zmq)
 
     def update_plot(self, matrix_from_zmq):
         """Called in GUI thread when ZMQ thread emits new data."""
@@ -86,16 +122,27 @@ class PlotterGUI:
                 name = dico["name"]
                 histo_to_plot = self.all_history[name]
                 if self.buffer_once_completed:
-                    histo_to_plot[self.num_point, :] = points[i, :]
+                    # histo_to_plot[self.num_point, :] = points[i, :]
                     # # TODO essayer de modif le np.vstack pour faire un truc plus propre (eviter de creer un nouveau tableau à chaque fois)
-                    self.all_trajectory[name].setData(pos=np.vstack([histo_to_plot[self.num_point+1:], histo_to_plot[:self.num_point+1]]))
+                    self.all_trajectory[name].setData(pos=np.vstack([histo_to_plot[self.num_point:], histo_to_plot[:self.num_point]]))
                 else:
-                    histo_to_plot[self.num_point, :] = points[i, :]
-                    self.all_trajectory[name].setData(pos=histo_to_plot[:self.num_point+1])
-            self.num_point = self.num_point + 1
-            if self.num_point >= self.N:
-                self.buffer_once_completed = True
-            self.num_point = self.num_point if self.num_point < self.N else 0
+                    # histo_to_plot[self.num_point, :] = points[i, :]
+                    self.all_trajectory[name].setData(pos=histo_to_plot[:self.num_point])
+            # self.num_point = self.num_point + 1
+            # if self.num_point >= self.N:
+            #     self.buffer_once_completed = True
+            # self.num_point = self.num_point if self.num_point < self.N else 0
+
+    def update_energy_plot(self, matrix_from_zmq):
+        """
+        Update the kinetic energy plot with the current velocities of the bodies.
+        :param velocities: A dictionary with body names as keys and velocity vectors as values.
+        """
+        masses = {key: elt["mass"] for key, elt in self.dict_simu['objects'].items()}
+        history_kinetic_energy = compute_kinetic_energy(masses, self.speed_history)
+        for name, curve in self.energy_curves.items():
+            kinetic_energy = history_kinetic_energy[name]
+            curve.setData(kinetic_energy)
 
 
             

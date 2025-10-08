@@ -24,7 +24,7 @@ import threading    # to manage the communication in a separate thread (especial
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-dt = 0.01  # time step in seconds
+dt = 0.001  # time step in seconds
 simulation_time = 1000.0  # total simulation time in seconds
 
 speed_simulation = 1/5 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
@@ -52,7 +52,7 @@ sub_socket = context.socket(zmq.SUB)
 sub_socket.connect("tcp://localhost:5555")
 sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all messages
 
-freq_send_data_zmq = 5  # in Hz
+freq_send_data_zmq = 10  # in Hz
 time_last_sent = time.time()
 #############################################################################
 
