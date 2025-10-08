@@ -80,3 +80,37 @@ class Spring:
         info_point1 = self.point1.name if isinstance(self.point1, Body) else self.point1
         info_point2 = self.point2.name if isinstance(self.point2, Body) else self.point2
         return f"Spring(point1={info_point1}, point2={info_point2}, k={self.k}, rest_length={self.rest_length})"
+    
+    def compute_potential(self):
+        """
+        compute the potential energy stored in the spring
+        :return: potential energy (J)
+        """
+        # get positions of the points
+        if isinstance(self.point1, Body):
+            pos1 = self.point1.position
+        else:
+            pos1 = self.point1
+
+        if isinstance(self.point2, Body):
+            pos2 = self.point2.position
+        else:
+            pos2 = self.point2
+
+        # compute the vector from point1 to point2
+        vec = pos2 - pos1
+        length = np.linalg.norm(vec)
+        # compute the potential energy
+        potential_total = 0.5 * self.k * (length - self.rest_length) ** 2
+
+        if isinstance(self.point1, Body) and isinstance(self.point2, Body):
+            ratio_for_point1 = self.point2.mass / (self.point1.mass + self.point2.mass)
+            potential = {self.point1.name: potential_total * ratio_for_point1, self.point2.name: potential_total * (1 - ratio_for_point1)}
+        elif isinstance(self.point1, Body): # point2 is fixed
+            potential = {self.point1.name: potential_total}
+        elif isinstance(self.point2, Body): # point1 is fixed
+            potential = {self.point2.name: potential_total}
+        else: # both points are fixed
+            potential = {}
+
+        return potential

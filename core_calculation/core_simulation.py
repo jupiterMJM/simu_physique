@@ -196,6 +196,25 @@ class Simulation:
         end_time = time.time()
         return (end_time - start_time)/n_steps  # return average time per step
     
+    def compute_potentiel_energy(self):
+        """
+        compute the potential energy of each body submitted to the force
+        will be useful to compute the total energy of the system and monitor the well behaviour of the system
+        """
+        potential_energy = {body.name: 0 for body in self.bodies}
+        for force_key in self.forces_to_consider:
+            force_func, params = self.forces_to_consider[force_key]
+            potential_of_force = force_func(self.bodies, **params, potential=True)
+            for body_name, single_potential in potential_of_force.items():
+                potential_energy[body_name] += single_potential
+
+        # if there are class forces to consider (e.g. spring forces)
+        for complex_force in self.class_forces_to_consider:
+            potential_of_force = complex_force.compute_potential()
+            for cle, single_potential in potential_of_force.items():
+                potential_energy[cle] += single_potential
+        return potential_energy
+    
 
 if __name__ == "__main__":
     simu = Simulation(json_file="scenarii_examples\cannon_balls.json")

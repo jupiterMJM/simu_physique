@@ -22,17 +22,23 @@ def no_force(bodies:list[Body]) -> dict[str, np.ndarray]:
         forces[body.name] = np.array((0, 0, 0), dtype='float64')
     return forces
 
-def gravitational_force(bodies:list[Body], g:np.float64=9.81) -> dict[str, np.ndarray]:
+def gravitational_force(bodies:list[Body], g:np.float64=9.81, potential=False) -> dict[str, np.ndarray]:
     """
     this function will compute the gravitational force acting on each body
     :param bodies: list of bodies in the simulation
     :param g: gravitational acceleration (default is 9.81 m/s^2)
     :return: a dictionary with body names as keys and force vectors as values
     """
-    forces = {}
-    for body in bodies:
-        forces[body.name] = np.array((0, 0, -body.mass * g), dtype='float64')
-    return forces
+    if not potential:
+        forces = {}
+        for body in bodies:
+            forces[body.name] = np.array((0, 0, -body.mass * g), dtype='float64')
+        return forces
+    else:
+        potentials = {}
+        for body in bodies:
+            potentials[body.name] = body.mass * g * body.position[2]
+        return potentials
 
 def damping_force(bodies:list[Body], k:np.float64|dict=None):
     """
