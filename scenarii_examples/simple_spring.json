@@ -9,17 +9,13 @@
         "mass": {
             "name" : "mass",
             "mass": 1,
-            "init_position" : [0, 5, 0],
+            "init_position" : [0, 1, 0],
             "init_velocity" : [0, 0, 0]
         }
     },
 
     "forces": {
-        "gravitational_force" :
-        {},
-        "damping_force":{
-            "k" : 0.1
-        }
+        "gravitational_force": {}
     },
 
     "class_forces": {

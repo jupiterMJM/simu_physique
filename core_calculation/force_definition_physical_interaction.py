@@ -58,14 +58,17 @@ class Spring:
         # compute the vector from point1 to point2
         vec = pos2 - pos1
         length = np.linalg.norm(vec)
+        # print(vec, length)
         if length == 0:
-            force_vec = np.array((0, 0, 0), dtype='float64')
+            print("[WARNING]: spring length is zero, force direction is undefined. Setting force vector along x axis.")
+            force_vec = np.array((self.k*(length - self.rest_length), 0, 0), dtype='float64')
         else:
             direction = vec / length
             # compute the spring force magnitude
             force_magnitude = self.k * (length - self.rest_length)
             # compute the force vector (pointing from point1 to point2)
             force_vec = force_magnitude * direction
+            # print("calculated force_ved", force_vec)
 
         # the force on point1 is -force_vec and on point2 is force_vec (Newton's third law)
         forces = {}
@@ -104,8 +107,11 @@ class Spring:
         potential_total = 0.5 * self.k * (length - self.rest_length) ** 2
 
         if isinstance(self.point1, Body) and isinstance(self.point2, Body):
-            ratio_for_point1 = self.point2.mass / (self.point1.mass + self.point2.mass)
+            # ratio_for_point1 = self.point2.mass / (self.point1.mass + self.point2.mass)
+            ratio_for_point1 = 1/2
+            assert ratio_for_point1 >= 0 and ratio_for_point1 <= 1, "Error in mass ratio computation for spring potential energy distribution"
             potential = {self.point1.name: potential_total * ratio_for_point1, self.point2.name: potential_total * (1 - ratio_for_point1)}
+            assert potential_total * ratio_for_point1>=0 and potential_total * (1 - ratio_for_point1)>=0, "Error in potential energy distribution: negative value"
         elif isinstance(self.point1, Body): # point2 is fixed
             potential = {self.point1.name: potential_total}
         elif isinstance(self.point2, Body): # point1 is fixed
@@ -114,3 +120,19 @@ class Spring:
             potential = {}
 
         return potential
+    
+if __name__ == "__main__":
+    from core_calculation.body_definition import Body
+    # Test : Ressort étiré
+    pos1 = Body(name="body1", mass=1, init_position=np.array([0, 0, 0]))
+    pos2 = Body(name="body2", mass=1, init_position=np.array([2, 0, 0]))
+    k = 10
+    rest_length = 1
+    spring = Spring(k=k, point1=pos1, point2=pos2, rest_length=rest_length)
+    spring2 = Spring(k=k, point1=pos2, point2=pos1, rest_length=rest_length)
+    forces = spring.compute_force()
+    print(forces)
+    forces2 = spring2.compute_force()
+    print(forces2)
+    print(spring.compute_potential())
+    print(spring2.compute_potential())

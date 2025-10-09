@@ -24,12 +24,14 @@ import threading    # to manage the communication in a separate thread (especial
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-dt = 0.01  # time step in seconds
+dt = 0.001  # time step in seconds
 simulation_time = 1000.0  # total simulation time in seconds
 
-speed_simulation = 1/5 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
+speed_simulation = 1/10 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
 # eg: 1/2 will mean that the simulation will run at half the speed of real time
 # "max" means the simulation will run as fast as possible (no waiting time)
+
+verbose=False
 #############################################################################
 
 
@@ -52,7 +54,7 @@ sub_socket = context.socket(zmq.SUB)
 sub_socket.connect("tcp://localhost:5555")
 sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all messages
 
-freq_send_data_zmq = 5  # in Hz
+freq_send_data_zmq = 10  # in Hz
 time_last_sent = time.time()
 #############################################################################
 
@@ -69,19 +71,21 @@ def generate_message(simu:Simulation):
     :note: why an array? bcs ZMQ is optimized for sending arrays
     array will be 6x(N+1) where N is the number of bodies
     first column will be general parameters that can be useful (dt, current time, ...)
-    then each column will be a body with its parameters (position and velocity)
+    then each column will be a body with its parameters (positionx3 and velocityx3 and internal potential energyx1)
     TODO on the first communication think about sending all the information about the bodies (mass, name, ...) but only once
     """
-    msg_array = np.zeros((6, len(simu.bodies)+1), dtype='float64')
+    msg_array = np.zeros((7, len(simu.bodies)+1), dtype='float64')
     # general parameters
     msg_array[0, 0] = simu.dt
     msg_array[1, 0] = simu.current_time
     msg_array[2, 0] = len(simu.bodies)
 
+    potential_all_bodies = simu.compute_potentiel_energy()
     for i, body in enumerate(simu.bodies):
         # print(body.position.flatten())
         msg_array[0:3, i+1] = body.position.flatten()
         msg_array[3:6, i+1] = body.velocity.flatten()
+        msg_array[6, i+1] = potential_all_bodies[body.name]
     # print("msg_array:", msg_array)
     return msg_array
 
@@ -188,7 +192,8 @@ except KeyboardInterrupt:
 try:
     simulation_is_running = True
     for step in tqdm(range(num_steps)):
-        simu.step()
+        simu.step(verbose=verbose)
+        # input()
         if time.time() - time_last_sent >= 1.0 / freq_send_data_zmq:
             time_last_sent = time.time()
              # Generate and send the message

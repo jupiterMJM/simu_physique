@@ -72,6 +72,24 @@ class Body:
                 params[key] = value.tolist()
         # params_str = ', '.join([f"{key}={value}" for key, value in params.items()])
         return f"Body({params})"
+    
+    # @property
+    # def position(self):
+    #     return self._position
+
+    # @position.setter
+    # def position(self, value):
+    #     # print(f"Position updated of {self.name} from {self._position} to {value}")
+    #     self._position = np.array(value, dtype="float64")
+
+    # @property
+    # def velocity(self):
+    #     return self._velocity
+    
+    # @velocity.setter
+    # def velocity(self, value):
+    #     # print(f"Velocity updated of {self.name} from {self._velocity} to {value}")
+    #     self._velocity = np.array(value, dtype="float64")
 
     
 
