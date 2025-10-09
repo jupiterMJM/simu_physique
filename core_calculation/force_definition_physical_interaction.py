@@ -76,7 +76,7 @@ class Spring:
             forces[name1] = force_vec
         if name2:
             forces[name2] = -force_vec
-        print(f"Spring force between {name1} and {name2}: {-force_vec if name1 else ''} {force_vec if name2 else ''}")
+        # print(f"Spring force between {name1} and {name2}: {-force_vec if name1 else ''} {force_vec if name2 else ''}")
         return forces
     
     def __repr__(self):

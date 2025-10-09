@@ -49,8 +49,8 @@ class Body:
         #             raise ValueError(f"Unknown parameter {key} provided in kwargs.")
         
         # setting default values if not provided
-        self._position = np.array([0, 0, 0], dtype="float64") if init_position is None else np.array(init_position, dtype="float64")
-        self._velocity = np.array([0, 0, 0], dtype="float64") if init_velocity is None else np.array(init_velocity, dtype="float64")
+        self.position = np.array([0, 0, 0], dtype="float64") if init_position is None else np.array(init_position, dtype="float64")
+        self.velocity = np.array([0, 0, 0], dtype="float64") if init_velocity is None else np.array(init_velocity, dtype="float64")
             
 
 
@@ -73,23 +73,23 @@ class Body:
         # params_str = ', '.join([f"{key}={value}" for key, value in params.items()])
         return f"Body({params})"
     
-    @property
-    def position(self):
-        return self._position
+    # @property
+    # def position(self):
+    #     return self._position
 
-    @position.setter
-    def position(self, value):
-        # print(f"Position updated of {self.name} from {self._position} to {value}")
-        self._position = np.array(value, dtype="float64")
+    # @position.setter
+    # def position(self, value):
+    #     # print(f"Position updated of {self.name} from {self._position} to {value}")
+    #     self._position = np.array(value, dtype="float64")
 
-    @property
-    def velocity(self):
-        return self._velocity
+    # @property
+    # def velocity(self):
+    #     return self._velocity
     
-    @velocity.setter
-    def velocity(self, value):
-        # print(f"Velocity updated of {self.name} from {self._velocity} to {value}")
-        self._velocity = np.array(value, dtype="float64")
+    # @velocity.setter
+    # def velocity(self, value):
+    #     # print(f"Velocity updated of {self.name} from {self._velocity} to {value}")
+    #     self._velocity = np.array(value, dtype="float64")
 
     
 

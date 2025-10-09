@@ -121,12 +121,12 @@ class Simulation:
         return forces
     
 
-    def step(self, update_bodies:bool=True):
+    def step(self, update_bodies:bool=True, verbose=False):
         """
         this function will perform a single time step oof the simulation
         :note: it will applies the Velocity Verlet integration method.
         """
-        # print("_"*10)
+        if verbose: print("_"*20)
         self.current_time += self.dt
         # first, we compute the forces acting on each body
         forces = self.compute_forces()
@@ -135,16 +135,16 @@ class Simulation:
         for body in self.bodies:
             # compute acceleration
             acceleration = forces[body.name] / body.mass
-            # print("computing accel on", body.name, acceleration)
+            if verbose: print("[ACCEL]", body.name, acceleration)
             if update_bodies:
                 # update position
-
+                if verbose: print(f"[POS UPT] {body.name} from {body.position} to ", end ="")
                 body.position = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
+                if verbose: print(body.position)
             else:
                 # only do the computation but not the update (useful for the benchmark)
                 _ = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
 
-        # TODO there is a bug here when i try to compute the new forces (try with two_bodies_spring and print the whole verbose)
         # compute new forces (for velocity update)
         new_forces = self.compute_forces()
 
@@ -152,11 +152,12 @@ class Simulation:
             # compute new acceleration
             old_acceleration = forces[body.name] / body.mass
             new_acceleration = new_forces[body.name] / body.mass
-            # print("computing NEW accel on", body.name, new_acceleration)
+            if verbose: print("[NEW ACCEL]", body.name, new_acceleration)
             if update_bodies:
                 # update velocity
-                # print("calcul interm", (old_acceleration + new_acceleration)/2 * self.dt)
+                if verbose : print(f"[VEL UPT] {body.name} from {body.velocity} to ", end="")
                 body.velocity =  body.velocity + (old_acceleration + new_acceleration)/2 * self.dt
+                if verbose : print(body.velocity)
                 # body.velocity =  body.velocity + acceleration * self.dt
             else:
                 # only do the computation but not the update (useful for the benchmark)

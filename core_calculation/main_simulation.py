@@ -30,6 +30,8 @@ simulation_time = 1000.0  # total simulation time in seconds
 speed_simulation = 1/10 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
 # eg: 1/2 will mean that the simulation will run at half the speed of real time
 # "max" means the simulation will run as fast as possible (no waiting time)
+
+verbose=False
 #############################################################################
 
 
@@ -190,7 +192,7 @@ except KeyboardInterrupt:
 try:
     simulation_is_running = True
     for step in tqdm(range(num_steps)):
-        simu.step()
+        simu.step(verbose=verbose)
         # input()
         if time.time() - time_last_sent >= 1.0 / freq_send_data_zmq:
             time_last_sent = time.time()
