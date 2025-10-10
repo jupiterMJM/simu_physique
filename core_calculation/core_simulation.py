@@ -61,6 +61,7 @@ class Simulation:
                 params = json.load(f)
 
             self.dt = params["parameters"]["dt"]
+            self.simulation_time = params["parameters"].get("duration", None)
 
             # constructing the bodies
             self.bodies = []

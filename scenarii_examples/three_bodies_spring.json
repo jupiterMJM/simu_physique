@@ -27,11 +27,7 @@
     },
 
     "forces":{
-        "gravitational_force":{},
-        "damping_force":
-        {
-            "k":0.1
-        }
+        "gravitational_force":{}
     },
 
     "class_forces": {

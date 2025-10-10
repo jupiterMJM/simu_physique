@@ -24,14 +24,16 @@ import threading    # to manage the communication in a separate thread (especial
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-dt = 0.001  # time step in seconds
-simulation_time = 1000.0  # total simulation time in seconds
+json_file = "scenarii_examples/earth_and_moon.json"
+# dt and time_simulation are defined in the json file
 
-speed_simulation = 1/10 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
+speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
 # eg: 1/2 will mean that the simulation will run at half the speed of real time
 # "max" means the simulation will run as fast as possible (no waiting time)
 
 verbose=False
+
+freq_send_data_zmq = 20  # in Hz
 #############################################################################
 
 
@@ -54,7 +56,6 @@ sub_socket = context.socket(zmq.SUB)
 sub_socket.connect("tcp://localhost:5555")
 sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all messages
 
-freq_send_data_zmq = 10  # in Hz
 time_last_sent = time.time()
 #############################################################################
 
@@ -150,9 +151,12 @@ def wait_for_user_input():
 
 # # DEFINITION OF THE SIMULATION
 # # defining simulation parameters
+simu = Simulation(json_file=json_file)
+simulation_time = simu.simulation_time
+dt = simu.dt
 num_steps = int(simulation_time / dt)
 # simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
-simu = Simulation(json_file="scenarii_examples/three_bodies_spring.json")
+
 print(generate_message(simu))
 
 
