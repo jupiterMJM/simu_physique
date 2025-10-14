@@ -24,7 +24,7 @@ import threading    # to manage the communication in a separate thread (especial
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-json_file = "scenarii_examples/earth_and_moon.json"
+json_file = "scenarii_examples/8_three_stars_system.json"
 # dt and time_simulation are defined in the json file
 
 speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
@@ -152,9 +152,9 @@ def wait_for_user_input():
 # # DEFINITION OF THE SIMULATION
 # # defining simulation parameters
 simu = Simulation(json_file=json_file)
-simulation_time = simu.simulation_time
-dt = simu.dt
-num_steps = int(simulation_time / dt)
+# simulation_time = simu.simulation_time
+# dt = simu.dt
+# num_steps = int(simulation_time / dt)
 # simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
 
 print(generate_message(simu))
@@ -164,7 +164,7 @@ print(generate_message(simu))
 if speed_simulation == "max":
     time_to_wait_for_ratio = 0
 else:
-    aim_time_per_step = dt / speed_simulation
+    aim_time_per_step = simu.dt / speed_simulation
     actual_time_per_step = simu.benchmark_step()
     time_to_wait_for_ratio = max(aim_time_per_step - actual_time_per_step, 0)
 
@@ -195,8 +195,7 @@ except KeyboardInterrupt:
 # RUN THE SIMULATION
 try:
     simulation_is_running = True
-    for step in tqdm(range(num_steps)):
-        simu.step(verbose=verbose)
+    for _ in simu.run():
         # input()
         if time.time() - time_last_sent >= 1.0 / freq_send_data_zmq:
             time_last_sent = time.time()
@@ -210,13 +209,13 @@ try:
 except KeyboardInterrupt:
     print("[INFO] Simulation interrupted by user on core calculation.")
     print("[INFO] Closing the ZMQ connection.")
+    
+finally:
     socket.send_multipart([b"control/", b"shutdown"])
     socket.setsockopt(zmq.LINGER, 5000)  # waiting for everything to be sent
     socket.close() # Close the socket
 
     sub_socket.close()
-
-finally:
     do_heartbeat = False
     hear_for_client = False
     time.sleep(2)

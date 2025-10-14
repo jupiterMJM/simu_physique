@@ -20,6 +20,8 @@
 
     "forces": {
         "gravitational_force" :
-        {}
+        {},
+        "damping_force" :
+        {"k" : 10}
     }
 }

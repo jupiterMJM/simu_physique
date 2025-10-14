@@ -19,6 +19,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
+from tqdm import tqdm
+import datetime
 from core_calculation.body_definition import Body
 from core_calculation.force_definition import *
 import json
@@ -43,6 +45,7 @@ class Simulation:
             the aim is to provide an easy way to only have to pass a "simple" json file to define the whole simulation
         """
         self.current_time = 0.0
+        self.nb_iter_done = 0
         if json_file is None:
             self.bodies = bodies
             self.dt = dt
@@ -129,6 +132,7 @@ class Simulation:
         """
         if verbose: print("_"*20)
         self.current_time += self.dt
+        self.nb_iter_done += 1
         # first, we compute the forces acting on each body
         forces = self.compute_forces()
 
@@ -166,6 +170,44 @@ class Simulation:
                 # _ = body.velocity +  acceleration * self.dt
                 
         # print("x"*10)
+
+    def run(self, update_bodies:bool=True, verbose=False):
+        """
+        function yielder that will run the simulation until the end time
+        :param update_bodies: bool, whether to update the bodies' positions and velocities
+        :param verbose: bool, whether to print the simulation progress
+        :return: generator, yields nothing for now
+        :note:the interest of this function is to "run" solely in the class => kind of doing black boxes simulation
+        """
+        if self.simulation_time is None:
+            raise ValueError("simulation_time is not defined. Please provide a duration in the json file or set it manually.")
+        elif self.simulation_time == "inf":
+            pbar = tqdm(total=0, position=0, desc="Simulation", dynamic_ncols=True)
+            start_time = time.time()
+            while True:
+                # to prevent from doing a % operation at every step we refresh the tqdm bar every 100 steps
+                for _ in range(100):
+                    self.step(update_bodies=update_bodies, verbose=verbose)
+                    yield
+                # just some stuff for the progress bar
+                elapsed = time.time() - start_time
+                elapsed_str = str(datetime.timedelta(seconds=int(elapsed)))  # e.g. "0:02:15"
+                # it_per_sec = f"{pbar.format_dict['rate']:.2f}" if pbar.format_dict['rate'] else "0.00"
+                # TODO try to have better estimation of it_per_sec
+                it_per_sec = f"{self.nb_iter_done/elapsed:.2f}" if elapsed > 0 else "0.00"
+                pbar.set_description(f"[{elapsed_str}] : {it_per_sec} it/s , t={self.current_time:.2e} s : {self.nb_iter_done}")
+
+
+
+                pbar.set_postfix_str(f"")
+                
+        else:
+            n_steps = int(self.simulation_time / self.dt)
+            pbar = tqdm(range(n_steps), desc="Simulation")
+            for _ in pbar:
+                self.step(update_bodies=update_bodies, verbose=verbose)
+                pbar.set_postfix_str(f"{self.current_time:.2e} s")
+                yield
 
     def __repr__(self):
         return f"Simulation(dt={self.dt}, bodies={self.bodies}, forces_to_consider={list(self.forces_to_consider.keys())})"
