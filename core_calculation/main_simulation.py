@@ -24,10 +24,12 @@ import threading    # to manage the communication in a separate thread (especial
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-json_file = "scenarii_examples/8_three_stars_system.json"
+# TODO graphical bug for 2_cannon_balls.json
+# TODO weird behaviour for 5_two_bodies_spring.json
+json_file = "scenarii_examples/7_earth_and_moon.json"
 # dt and time_simulation are defined in the json file
 
-speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
+# speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
 # eg: 1/2 will mean that the simulation will run at half the speed of real time
 # "max" means the simulation will run as fast as possible (no waiting time)
 
@@ -161,12 +163,12 @@ print(generate_message(simu))
 
 
 # computing the time to wait at each step to get the expected ratio of real time vs simulation time
-if speed_simulation == "max":
-    time_to_wait_for_ratio = 0
-else:
-    aim_time_per_step = simu.dt / speed_simulation
-    actual_time_per_step = simu.benchmark_step()
-    time_to_wait_for_ratio = max(aim_time_per_step - actual_time_per_step, 0)
+# if speed_simulation == "max":
+#     time_to_wait_for_ratio = 0
+# else:
+#     aim_time_per_step = simu.dt / speed_simulation
+#     actual_time_per_step = simu.benchmark_step()
+#     time_to_wait_for_ratio = max(aim_time_per_step - actual_time_per_step, 0)
 
 # START HEARTBEAT THREAD
 thread_hb = threading.Thread(target=heartbeat, daemon=True).start()
@@ -202,8 +204,8 @@ try:
              # Generate and send the message
             arr = generate_message(simu)
             socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
-        if time_to_wait_for_ratio > 0:
-            time.sleep(time_to_wait_for_ratio)
+        # if time_to_wait_for_ratio > 0:
+        #     time.sleep(time_to_wait_for_ratio)
             
             
 except KeyboardInterrupt:
