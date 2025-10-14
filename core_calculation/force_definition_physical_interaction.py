@@ -107,8 +107,8 @@ class Spring:
         potential_total = 0.5 * self.k * (length - self.rest_length) ** 2
 
         if isinstance(self.point1, Body) and isinstance(self.point2, Body):
-            # ratio_for_point1 = self.point2.mass / (self.point1.mass + self.point2.mass)
-            ratio_for_point1 = 1/2
+            ratio_for_point1 = self.point2.mass / (self.point1.mass + self.point2.mass)
+            # ratio_for_point1 = 1/2
             assert ratio_for_point1 >= 0 and ratio_for_point1 <= 1, "Error in mass ratio computation for spring potential energy distribution"
             potential = {self.point1.name: potential_total * ratio_for_point1, self.point2.name: potential_total * (1 - ratio_for_point1)}
             assert potential_total * ratio_for_point1>=0 and potential_total * (1 - ratio_for_point1)>=0, "Error in potential energy distribution: negative value"
@@ -120,7 +120,72 @@ class Spring:
             potential = {}
 
         return potential
+
+
+
+class Gravity:
+    def __init__(self, point1:Body, point2:Body):
+        """
+        initialize the gravity force between two bodies
+        :param point1: first body
+        :param point2: second body
+        :note: as gravity is a universal force, both point1 and point2 must be Body objects, it cannot be only points!
+        """
+        self.point1 = point1
+        self.point2 = point2
+        self.G = 6.67430e-11 # gravitational constant in m^3 kg^-1 s^-2 MUST NOT BE CHANGED, Universal cst!!!
+
+    def compute_force(self) -> dict[str, np.ndarray]:
+        """
+        compute the spring force acting on the two points (or bodies)
+        :return: a 2 elements dict with body names as keys and force vectors as values
+        """
+
+        # compute the vector from point1 to point2
+        vec = self.point2.position - self.point1.position
+        length = np.linalg.norm(vec)
+
+        if length == 0:
+            print("[WARNING]: spring length is zero, force direction is undefined. Returning all 0.")
+            return {self.point1.name: np.array((0, 0, 0), dtype='float64'), self.point2.name: np.array((0, 0, 0), dtype='float64')}
+        else:
+            direction = vec / length
+            # compute the spring force magnitude
+            force_magnitude = self.G * (self.point1.mass * self.point2.mass) / length**2
+            # compute the force vector (pointing from point1 to point2)
+            force_vec = force_magnitude * direction
+            # print("calculated force_ved", force_vec)
+        force = {self.point1.name: force_vec, self.point2.name: -force_vec}
+        return force
     
+    def __repr__(self):
+        return f"Gravity(point1={self.point1.name}, point2={self.point2.name})"
+
+
+    def compute_potential(self):
+        """
+        compute the potential energy stored in the spring
+        :return: potential energy (J)
+        """
+        # compute the vector from point1 to point2
+        vec = self.point2.position - self.point1.position
+        length = np.linalg.norm(vec)
+        if length == 0:
+            print("[WARNING]: spring length is zero, potential energy is undefined. Setting potential energy to 0.")
+            potential_total = 0
+        else:
+            # compute the potential energy
+            potential_total = - self.G * (self.point1.mass * self.point2.mass) / length
+
+        ratio_for_point1 = self.point2.mass / (self.point1.mass + self.point2.mass)
+        # ratio_for_point1 = 1/2
+        assert ratio_for_point1 >= 0 and ratio_for_point1 <= 1, "Error in mass ratio computation for spring potential energy distribution"
+        potential = {self.point1.name: potential_total * ratio_for_point1, self.point2.name: potential_total * (1 - ratio_for_point1)}
+        assert potential_total * ratio_for_point1<=0 and potential_total * (1 - ratio_for_point1)<=0, "Error in potential energy distribution: positive value"
+
+        return potential
+
+
 if __name__ == "__main__":
     from core_calculation.body_definition import Body
     # Test : Ressort étiré

@@ -1,7 +1,8 @@
 {
     "parameters": {
         "dt": 0.001,
-        "duration": 10
+        "duration": 10,
+        "speed_simulation" : 0.1
     },
 
 
@@ -27,11 +28,7 @@
     },
 
     "forces":{
-        "gravitational_force":{},
-        "damping_force":
-        {
-            "k":0.1
-        }
+        "gravitational_force":{}
     },
 
     "class_forces": {

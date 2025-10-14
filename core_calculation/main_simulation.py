@@ -24,14 +24,18 @@ import threading    # to manage the communication in a separate thread (especial
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-dt = 0.001  # time step in seconds
-simulation_time = 1000.0  # total simulation time in seconds
+# TODO graphical bug for 2_cannon_balls.json
+# TODO weird behaviour for 5_two_bodies_spring.json
+json_file = "scenarii_examples/7_earth_and_moon.json"
+# dt and time_simulation are defined in the json file
 
-speed_simulation = 1/10 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
+# speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
 # eg: 1/2 will mean that the simulation will run at half the speed of real time
 # "max" means the simulation will run as fast as possible (no waiting time)
 
 verbose=False
+
+freq_send_data_zmq = 20  # in Hz
 #############################################################################
 
 
@@ -54,7 +58,6 @@ sub_socket = context.socket(zmq.SUB)
 sub_socket.connect("tcp://localhost:5555")
 sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all messages
 
-freq_send_data_zmq = 10  # in Hz
 time_last_sent = time.time()
 #############################################################################
 
@@ -150,19 +153,22 @@ def wait_for_user_input():
 
 # # DEFINITION OF THE SIMULATION
 # # defining simulation parameters
-num_steps = int(simulation_time / dt)
+simu = Simulation(json_file=json_file)
+# simulation_time = simu.simulation_time
+# dt = simu.dt
+# num_steps = int(simulation_time / dt)
 # simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
-simu = Simulation(json_file="scenarii_examples/three_bodies_spring.json")
+
 print(generate_message(simu))
 
 
 # computing the time to wait at each step to get the expected ratio of real time vs simulation time
-if speed_simulation == "max":
-    time_to_wait_for_ratio = 0
-else:
-    aim_time_per_step = dt / speed_simulation
-    actual_time_per_step = simu.benchmark_step()
-    time_to_wait_for_ratio = max(aim_time_per_step - actual_time_per_step, 0)
+# if speed_simulation == "max":
+#     time_to_wait_for_ratio = 0
+# else:
+#     aim_time_per_step = simu.dt / speed_simulation
+#     actual_time_per_step = simu.benchmark_step()
+#     time_to_wait_for_ratio = max(aim_time_per_step - actual_time_per_step, 0)
 
 # START HEARTBEAT THREAD
 thread_hb = threading.Thread(target=heartbeat, daemon=True).start()
@@ -191,28 +197,27 @@ except KeyboardInterrupt:
 # RUN THE SIMULATION
 try:
     simulation_is_running = True
-    for step in tqdm(range(num_steps)):
-        simu.step(verbose=verbose)
+    for _ in simu.run():
         # input()
         if time.time() - time_last_sent >= 1.0 / freq_send_data_zmq:
             time_last_sent = time.time()
              # Generate and send the message
             arr = generate_message(simu)
             socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
-        if time_to_wait_for_ratio > 0:
-            time.sleep(time_to_wait_for_ratio)
+        # if time_to_wait_for_ratio > 0:
+        #     time.sleep(time_to_wait_for_ratio)
             
             
 except KeyboardInterrupt:
     print("[INFO] Simulation interrupted by user on core calculation.")
     print("[INFO] Closing the ZMQ connection.")
+    
+finally:
     socket.send_multipart([b"control/", b"shutdown"])
     socket.setsockopt(zmq.LINGER, 5000)  # waiting for everything to be sent
     socket.close() # Close the socket
 
     sub_socket.close()
-
-finally:
     do_heartbeat = False
     hear_for_client = False
     time.sleep(2)

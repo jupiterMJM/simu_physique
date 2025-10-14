@@ -25,7 +25,7 @@ class PlotterGUI:
         self.nb_of_bodies = len(dict_simu['objects'])
         self.dict_simu = dict_simu
         self.plot_traj = plot_traj
-        self.N = 50
+        self.N = 1000
         if self.plot_traj:
             
             bodies = dict_simu['objects']
@@ -48,7 +48,7 @@ class PlotterGUI:
         self.view = gl.GLViewWidget()
         self.view.show()
         self.view.setWindowTitle('3D Live Plot (Threaded ZMQ)')
-        self.view.setCameraPosition(distance=20)
+        # self.view.setCameraPosition(distance=20)
 
         # Grid
         g = gl.GLGridItem()
@@ -58,6 +58,11 @@ class PlotterGUI:
         # # Scatter plot
         self.scatter = gl.GLScatterPlotItem(pos=init_pos, color=(1, 0, 0, 1), size=5)
         self.view.addItem(self.scatter)
+        # Adjust the camera to ensure all points are visible
+        max_extent = np.max(np.linalg.norm(init_pos, axis=1))  # Calculate the maximum distance from origin
+        self.view.opts['distance'] = max_extent * 2  # Set distance proportional to the maximum extent
+        self.view.opts['center'] = pg.Vector(0, 0, 0)  # Center the camera at the origin
+
 
         self.all_trajectory = {}
         for i, elt in enumerate(bodies.items()):
@@ -114,7 +119,7 @@ class PlotterGUI:
         the main usecase is to save history of positions and speeds more easily
         """
         # print("update_all_plots called", matrix_from_zmq.shape)
-        print(matrix_from_zmq)
+        # print(matrix_from_zmq)
         points_position = matrix_from_zmq[0:3, 1:].T
         points_velocity = matrix_from_zmq[3:6, 1:].T
         potential_energy_bodies = matrix_from_zmq[6, 1:]

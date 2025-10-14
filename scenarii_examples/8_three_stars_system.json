@@ -1,0 +1,50 @@
+{
+    "parameters": {
+        "dt": 60,
+        "duration": "inf",
+        "speed_simulation" : "max"
+    },
+
+
+    "objects": {
+        "star1": {
+            "name" : "star1",
+            "mass": 1.9885e30,
+            "init_velocity" : [-1.39e4, -1.29e4, 0],
+            "init_position" : [-1.45e11, 3.63e10, 0]
+        },
+        "star2" : {
+            "name" : "star2",
+            "mass": 1.9885e30,
+            "init_position" : [1.45e11, -3.63e10, 0],
+            "init_velocity" : [-1.39e4, -1.29e4, 0]
+        },
+        "star3":{
+            "name" : "star3",
+            "mass": 1.9885e30,
+            "init_position" : [0, 0, 0],
+            "init_velocity" : [2.78e4, 2.58e4, 0]
+        }
+    },
+
+    "forces":{
+    },
+
+    "class_forces": {
+        "gravity1" : {
+            "class_name": "Gravity",
+            "point1": "star1",
+            "point2": "star2"
+        },
+        "gravity2" : {
+            "class_name": "Gravity",
+            "point1": "star1",
+            "point2": "star3"
+        },
+        "gravity3" : {
+            "class_name": "Gravity",
+            "point1": "star2",
+            "point2": "star3"
+        }
+    }
+}

@@ -1,7 +1,8 @@
 {
     "parameters": {
-        "dt": 0.01,
-        "duration": 10
+        "dt": 0.001,
+        "duration": 100,
+        "speed_simulation" : 0.1
     },
 
 
