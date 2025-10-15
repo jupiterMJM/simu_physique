@@ -60,8 +60,11 @@ class PlotterGUI:
         self.view.addItem(self.scatter)
         # Adjust the camera to ensure all points are visible
         max_extent = np.max(np.linalg.norm(init_pos, axis=1))  # Calculate the maximum distance from origin
-        self.view.opts['distance'] = max_extent * 2  # Set distance proportional to the maximum extent
-        self.view.opts['center'] = pg.Vector(0, 0, 0)  # Center the camera at the origin
+        # maybe not the best way to do it but it works for now
+        if max_extent == 0 or max_extent < self.view.cameraPosition().length():
+            pass
+        else:
+            self.view.setCameraPosition(distance=max_extent * 2, elevation=20, azimuth=30)
 
 
         self.all_trajectory = {}
