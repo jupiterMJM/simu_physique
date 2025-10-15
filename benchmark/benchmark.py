@@ -14,7 +14,17 @@ from core_calculation.core_simulation import Simulation
 from core_calculation.force_definition import *
 import json
 import time
+from annexe_benchmark import test_computer_speed
 
+print("Starting benchmark...")
+print("[INFO] Benchmarking computer speed...")
+benchmark_of_computer = test_computer_speed()
+print("[INFO] Computer speed benchmarked.")
+
+report_to_save = {}
+report_to_save["comment"] = "Write here your comments"
+report_to_save["date"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+report_to_save["computer_info"] = benchmark_of_computer
 
 nb_of_dt = 1e4  # number of dt to simulate for the benchmark
 
@@ -39,12 +49,24 @@ for file in list_test_scenarii:
 
     sim = Simulation(json_file="benchmark/temp.json")
 
-    # os.remove("benchmark/temp.json")
+    os.remove("benchmark/temp.json")
     
     # running the simulation
     start_time = time.time()
-    for _ in sim.run():
+    for _ in sim.run(reduce_speed=False):
         pass
     end_time = time.time()
+    report_to_save[file] = {
+        "time_taken": end_time - start_time,
+        "nb_of_dt": nb_of_dt,
+        "time_per_dt": (end_time - start_time) / nb_of_dt,
+        "time_taken_normalized": (end_time - start_time) / benchmark_of_computer['score']
+    }
     
     print(f"Simulation for {file} completed in {end_time - start_time:.2f} seconds for {nb_of_dt} steps.")
+
+# saving the report
+current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+with open(f"benchmark/report_benchmark_{current_time}.json", 'w') as report_f:
+    json.dump(report_to_save, report_f, indent=4)
+print("Benchmark completed. Report saved to benchmark/report_benchmark.json")
