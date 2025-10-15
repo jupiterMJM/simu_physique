@@ -65,6 +65,7 @@ class Simulation:
 
             self.dt = params["parameters"]["dt"]
             self.simulation_time = params["parameters"].get("duration", None)
+            self.speed_simulation = params["parameters"].get("speed_simulation", "max")
 
             # constructing the bodies
             self.bodies = []
@@ -171,14 +172,29 @@ class Simulation:
                 
         # print("x"*10)
 
-    def run(self, update_bodies:bool=True, verbose=False):
+    def run(self, update_bodies:bool=True, verbose=False, reduce_speed=True):
         """
         function yielder that will run the simulation until the end time
         :param update_bodies: bool, whether to update the bodies' positions and velocities
         :param verbose: bool, whether to print the simulation progress
+        :param reduce_speed: bool, whether to reduce the speed of the simulation to a ratio of real time (useful to visualize behaviour of the simulation)
         :return: generator, yields nothing for now
         :note:the interest of this function is to "run" solely in the class => kind of doing black boxes simulation
         """
+        if reduce_speed:
+            # some computation must be done to ensure the simulation runs at the right speed
+            if self.speed_simulation == "max" or self.speed_simulation == "inf":
+                reduce_speed = False    # runs as fast as possible
+            else:
+                aimed_time_per_step = self.dt/self.speed_simulation
+                actual_time_per_step = self.benchmark_step()
+                self.time_to_sleep_for_ratio = aimed_time_per_step - actual_time_per_step
+                if self.time_to_sleep_for_ratio < 0:
+                    reduce_speed = False
+                    self.time_to_sleep_for_ratio = 0   # we don t care, bcs will not be used
+                
+            
+
         if self.simulation_time is None:
             raise ValueError("simulation_time is not defined. Please provide a duration in the json file or set it manually.")
         elif self.simulation_time == "inf":
@@ -188,6 +204,7 @@ class Simulation:
                 # to prevent from doing a % operation at every step we refresh the tqdm bar every 100 steps
                 for _ in range(100):
                     self.step(update_bodies=update_bodies, verbose=verbose)
+                    if reduce_speed: time.sleep(self.time_to_sleep_for_ratio)
                     yield
                 # just some stuff for the progress bar
                 elapsed = time.time() - start_time
@@ -197,9 +214,7 @@ class Simulation:
                 it_per_sec = f"{self.nb_iter_done/elapsed:.2f}" if elapsed > 0 else "0.00"
                 pbar.set_description(f"[{elapsed_str}] : {it_per_sec} it/s , t={self.current_time:.2e} s : {self.nb_iter_done}")
 
-
-
-                pbar.set_postfix_str(f"")
+                
                 
         else:
             n_steps = int(self.simulation_time / self.dt)
@@ -207,6 +222,8 @@ class Simulation:
             for _ in pbar:
                 self.step(update_bodies=update_bodies, verbose=verbose)
                 pbar.set_postfix_str(f"{self.current_time:.2e} s")
+
+                if reduce_speed : time.sleep(self.time_to_sleep_for_ratio)
                 yield
 
     def __repr__(self):

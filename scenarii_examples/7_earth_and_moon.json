@@ -1,7 +1,8 @@
 {
     "parameters": {
         "dt": 10,
-        "duration": 10000000
+        "duration": 10000000,
+        "speed_simulation" : "max"
     },
 
 
