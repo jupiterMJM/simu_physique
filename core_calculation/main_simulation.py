@@ -24,9 +24,7 @@ import threading    # to manage the communication in a separate thread (especial
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-# TODO graphical bug for 2_cannon_balls.json
-# TODO weird behaviour for 5_two_bodies_spring.json
-json_file = "scenarii_examples/7_earth_and_moon.json"
+json_file = "scenarii_examples/5_two_bodies_spring.json"
 # dt and time_simulation are defined in the json file
 
 # speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)

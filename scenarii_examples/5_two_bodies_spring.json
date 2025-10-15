@@ -1,4 +1,5 @@
 {
+    "commentaire" : "Be careful not to set the initial position too high otherwise the masses will cross the potential of the spring! (interesting phenomenon but quite weird",
     "parameters": {
         "dt": 0.001,
         "duration": 10,
@@ -10,13 +11,13 @@
         "mass": {
             "name" : "mass",
             "mass": 0.5,
-            "init_position" : [-10e-2, 0, 0],
+            "init_position" : [-3e-2, 0, 0],
             "init_velocity" : [0, 0, 0]
         },
         "mass2" : {
             "name" : "mass2",
             "mass": 0.5,
-            "init_position" : [10e-2, 0, 0],
+            "init_position" : [3e-2, 0, 0],
             "init_velocity" : [0, 0, 0]
         }
     },
@@ -28,9 +29,9 @@
         "spring1" : {
             "class_name": "Spring",
             "k": 10,
-            "rest_length": 10e-2,
-            "point1": "mass",
-            "point2": "mass2"
+            "rest_length": 5e-2,
+            "point1": "mass2",
+            "point2": "mass"
         }
     }
 }
