@@ -24,7 +24,7 @@ import threading    # to manage the communication in a separate thread (especial
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-json_file = "scenarii_examples/5_two_bodies_spring.json"
+json_file = r"scenarii_examples\9_toupie.json"
 # dt and time_simulation are defined in the json file
 
 # speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
@@ -75,7 +75,7 @@ def generate_message(simu:Simulation):
     then each column will be a body with its parameters (positionx3 and velocityx3 and internal potential energyx1)
     TODO on the first communication think about sending all the information about the bodies (mass, name, ...) but only once
     """
-    msg_array = np.zeros((7, len(simu.bodies)+1), dtype='float64')
+    msg_array = np.zeros((3+3+1+3*3, len(simu.bodies)+1), dtype='float64')
     # general parameters
     msg_array[0, 0] = simu.dt
     msg_array[1, 0] = simu.current_time
@@ -87,6 +87,10 @@ def generate_message(simu:Simulation):
         msg_array[0:3, i+1] = body.position.flatten()
         msg_array[3:6, i+1] = body.velocity.flatten()
         msg_array[6, i+1] = potential_all_bodies[body.name]
+        if body.representation == "3D_solid_body":
+            msg_array[7:7+3*3, i+1] = body.initial_basis.flatten()
+        else:
+            msg_array[7:7+3*3, i+1] = np.array([np.nan, np.nan, np.nan])
     # print("msg_array:", msg_array)
     return msg_array
 
