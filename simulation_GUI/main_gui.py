@@ -9,7 +9,9 @@ import zmq
 import numpy as np
 import time
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
+from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import Qt
 from PyQt5 import QtCore
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
@@ -144,6 +146,7 @@ class PlotterGUI:
 
         ###########################################################################################
 
+        self.add_cartesian_base()
 
         # SOME STUFF left to do
         # Background ZMQ thread
@@ -154,8 +157,9 @@ class PlotterGUI:
         self.receiver.start()
 
         # Timer just keeps Qt responsive (not strictly required if using signals)
-        self.timer = QTimer()
-        self.timer.start(100)
+        self.camera_sync_timer = QTimer()
+        self.camera_sync_timer.timeout.connect(self.sync_inset_camera)
+        self.camera_sync_timer.start(50)  # toutes les 50 ms
 
     def update_all_plots(self, matrix_from_zmq):
         """
@@ -227,8 +231,51 @@ class PlotterGUI:
         self.total_mechanical_energy_syst_curve.setData(time_axis, total_mechanical_energy)
         
 
+    def add_cartesian_base(self):
+        """
+        Add a small 3D Cartesian base in the bottom-left corner of the main 3D window.
+        """
+        # Create a new GLViewWidget for the inset
+        self.inset_view = gl.GLViewWidget()
+        self.inset_view.setFixedSize(150, 150)  # Set the size of the inset
+        self.inset_view.opts['distance'] = 5  # Set the camera distance for the inset
+        self.inset_view.opts["elevation"] = self.view.opts.get("elevation", 0)
+        self.inset_view.opts["azimuth"] = self.view.opts.get("azimuth", 0)
+        # print("hellllllllllllo", self.view.cameraParams())
+        self.inset_view.setWindowTitle('Cartesian Base')
 
+        # Create the Cartesian base axes
+        origin = np.array([0, 0, 0])
+        x_axis = np.array([[0, 0, 0], [1, 0, 0]])  # X-axis
+        y_axis = np.array([[0, 0, 0], [0, 1, 0]])  # Y-axis
+        z_axis = np.array([[0, 0, 0], [0, 0, 1]])  # Z-axis
+
+        # Add the axes to the inset view
+        x_line = gl.GLLinePlotItem(pos=x_axis, color=(1, 0, 0, 1), width=2, antialias=True)  # Red for X
+        y_line = gl.GLLinePlotItem(pos=y_axis, color=(0, 1, 0, 1), width=2, antialias=True)  # Green for Y
+        z_line = gl.GLLinePlotItem(pos=z_axis, color=(0, 0, 1, 1), width=2, antialias=True)  # Blue for Z
+
+        self.inset_view.addItem(x_line)
+        self.inset_view.addItem(y_line)
+        self.inset_view.addItem(z_line)
+
+        # Embed the inset into the bottom-left corner of the main window
+        layout = QVBoxLayout(self.view)
+        layout.setContentsMargins(10, 10, 0, 0)  # Adjust margins to position the inset
+        layout.addWidget(self.inset_view, alignment=Qt.AlignLeft | Qt.AlignBottom)
             
+
+    def sync_inset_camera(self):
+        # print("im here")
+        params = self.view.cameraParams()
+        self.inset_view.setCameraParams(elevation=params['elevation'], azimuth=params['azimuth'])
+        # print(params["azimuth"], params["elevation"])
+        # print(self.view.opts.get("azimuth", 0), self.view.opts.get("elevation", 0), self.view.opts.get("roll", 0))
+        # self.inset_view.opts['elevation'] = self.view.opts.get("elevation", 0)
+        # self.inset_view.opts['azimuth'] = self.view.opts.get("azimuth", 0)
+        # self.inset_view.opts['roll'] = params.get('roll', 0)
+        # self.inset_view.opts['distance'] = params['distance']
+        # self.inset_view.opts['center'] = params['center']
 
     def run(self):
         sys.exit(self.app.exec_())
