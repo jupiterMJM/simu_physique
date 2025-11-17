@@ -60,10 +60,15 @@ class Body:
         
         if initial_basis:
             self.representation = "3D_solid_body"
-            self.initial_basis = np.array(initial_basis, dtype="float64")
+            if not check_orthonormal(np.array(initial_basis, dtype="float64")):
+                print(f"[WARNING] The provided initial basis for body {self.name} is not orthonormal. It will be orthonormalised using the direct method.")
+                basis = direct_orthonormalisation(np.array(initial_basis, dtype="float64"))
+                self.basis = np.array(basis, dtype="float64")
+            else:
+                self.basis = np.array(initial_basis, dtype="float64")
         else:
             self.representation = "point_mass"
-            self.initial_basis = np.array([np.nan, np.nan, np.nan], dtype="float64")
+            self.basis = np.array([np.nan, np.nan, np.nan], dtype="float64")
             
 
 
@@ -102,7 +107,7 @@ class Body:
                 "init_position": self.position.flatten().tolist(),
                 "init_velocity": self.velocity.flatten().tolist(),
                 "representation": self.representation,
-                "initial_base": self.initial_basis.flatten().tolist(),
+                "initial_base": self.basis.flatten().tolist(),
             }
     
     # @property
@@ -124,6 +129,35 @@ class Body:
     #     self._velocity = np.array(value, dtype="float64")
 
     
+def check_orthonormal(matrix):
+    """
+    Check if a matrix is orthonormal
+    :param matrix: np.array, matrix to check
+    :return: bool, True if the matrix is orthonormal, False otherwise
+    """
+    identity = np.eye(matrix.shape[0])
+    product = np.dot(matrix.T, matrix)
+    return np.allclose(product, identity)
+
+def direct_orthonormalisation(transition_matrix):
+    """
+    Orthonormalisation of a base using the direct method
+    :param transition_matrix: np.array, matrix representing the transition from the main basis to the body basis
+    :return: np.array, orthonormalised transition matrix
+    :note: the first axis will just be orthonormalised, the second will be made orthogonal to the first and then normalised,
+           the third will be made orthogonal to the first two and then normalised
+    """
+    u1 = transition_matrix[:, 0]
+    e1 = u1 / np.linalg.norm(u1)
+
+    u2 = transition_matrix[:, 1] - np.dot(transition_matrix[:, 1], e1) * e1
+    e2 = u2 / np.linalg.norm(u2)
+
+    u3 = transition_matrix[:, 2] - np.dot(transition_matrix[:, 2], e1) * e1 - np.dot(transition_matrix[:, 2], e2) * e2
+    e3 = u3 / np.linalg.norm(u3)
+
+    orthonormal_matrix = np.column_stack((e1, e2, e3))
+    return orthonormal_matrix
 
 if __name__ == "__main__":
     import json
