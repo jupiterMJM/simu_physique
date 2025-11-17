@@ -243,12 +243,7 @@ class Simulation:
             "parameters": {
                 "dt": self.dt
             },
-            "objects": {body.name: {
-                "mass": body.mass,
-                "name": body.name,
-                "init_position": body.position.flatten().tolist(),
-                "init_velocity": body.velocity.flatten().tolist()
-            } for body in self.bodies},
+            "objects": {body.name: body.repr_json() for body in self.bodies},
             "forces": {key: params for key, (func, params) in self.forces_to_consider.items()}
         }
         return simu_dict

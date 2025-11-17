@@ -21,41 +21,47 @@ from collections import deque
 
 class PlotterGUI:
     def __init__(self, receiver: ZMQReceiver = None, dict_simu=None, plot_traj=False):
+        """
+        initalite the plotter GUI
+        :param receiver: the ZMQReceiver object that will receive data from the simulation
+        :param dict_simu: the dictionary containing the simulation parameters and bodies
+        :param plot_traj: bool, whether to plot the trajectory of the bodies
+        """
         # TODO modify the array buffer (not beautiful and not scalable for now)
         self.nb_of_bodies = len(dict_simu['objects'])
         self.dict_simu = dict_simu
         self.plot_traj = plot_traj
+        bodies = dict_simu['objects']
+        init_pos = np.array([elt["init_position"] for key, elt in bodies.items()])
+        all_basis = {key : elt["initial_base"] for key, elt in bodies.items()}
+
+        # note : eventhough we define historic variables, those might not be used if specified otherwise
         self.N = 1000
-        if self.plot_traj:
-            
-            bodies = dict_simu['objects']
-            print(bodies)
-            init_pos = np.array([elt["init_position"] for key, elt in bodies.items()])
-            self.all_history = {elt["name"]: np.zeros((self.N, 3)) for key, elt in bodies.items()} # to store trajectory history
-            for i, elt in enumerate(bodies.items()):
-                cle, dico = elt
-                name = dico["name"]
-                self.all_history[name][0, :] = init_pos[i, :]
         self.kinetic_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
         self.potential_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
         self.time_current_history = deque(maxlen=self.N*3)
+        self.all_history = {elt["name"]: np.zeros((self.N, 3)) for key, elt in bodies.items()} # to store trajectory history
         self.num_point = 0
+        self.buffer_once_completed = False  # to know if the buffer is filled at least once
         
-        self.buffer_once_completed = False
-        self.app = QApplication(sys.argv)
 
+        ###########################################################################################
+        ## CREATION OF THE FIRST WINDOW : position of the bodies in 3D
+        ###########################################################################################
+
+        ## I/ Create the application
+        self.app = QApplication(sys.argv)
         # Create 3D view
         self.view = gl.GLViewWidget()
         self.view.show()
         self.view.setWindowTitle('3D Live Plot (Threaded ZMQ)')
-        # self.view.setCameraPosition(distance=20)
-
         # Grid
         g = gl.GLGridItem()
         g.scale(2, 2, 1)
         self.view.addItem(g)
 
-        # # Scatter plot
+
+        ## II/ Plot the initial positions of the bodies
         self.scatter = gl.GLScatterPlotItem(pos=init_pos, color=(1, 0, 0, 1), size=5)
         self.view.addItem(self.scatter)
         # Adjust the camera to ensure all points are visible
@@ -67,18 +73,51 @@ class PlotterGUI:
             self.view.setCameraPosition(distance=max_extent * 2, elevation=20, azimuth=30)
 
 
-        self.all_trajectory = {}
+        ## III/ Do the plot of the basis of each body (if needed)
         for i, elt in enumerate(bodies.items()):
-            body_trajectory = gl.GLLinePlotItem(
-                pos=np.zeros((2, 3)),       # need at least two points to draw the first line
-                color=(1, 1, 0, 1),
-                width=2,
-                antialias=True,
-                mode="line_strip"
-            )
             cle, dico = elt
-            self.all_trajectory[dico["name"]] = body_trajectory
-            self.view.addItem(body_trajectory)
+            name = dico["name"]
+            if dico["representation"] == "3D_solid_body":
+                base = np.array(all_basis[cle]).reshape((3, 3))
+                print(base)
+                origin = init_pos[i, :]
+
+                # Create lines for each axis
+                colors = [(1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1)]
+                for j in range(3):
+                    axis = base[j, :]
+                    line_data = np.array([origin, origin + axis])
+                    axis_line = gl.GLLinePlotItem(pos=line_data, color=colors[j], width=2, antialias=True)
+                    self.view.addItem(axis_line)
+
+
+
+        ## IV/ Plot of trajectories (if needed)
+        if self.plot_traj:
+            self.all_trajectory = {}
+            for i, elt in enumerate(bodies.items()):
+                cle, dico = elt
+                name = dico["name"]
+                self.all_history[name][0, :] = init_pos[i, :]
+
+                body_trajectory = gl.GLLinePlotItem(
+                    pos=np.zeros((2, 3)),       # need at least two points to draw the first line
+                    color=(1, 1, 0, 1),
+                    width=2,
+                    antialias=True,
+                    mode="line_strip"
+                )
+                cle, dico = elt
+                self.all_trajectory[dico["name"]] = body_trajectory
+
+                self.view.addItem(body_trajectory)
+
+        ###########################################################################################
+
+
+        ###########################################################################################
+        ## CREATION OF THE SECOND WINDOW : kinetic energy of the bodies
+        ###########################################################################################
 
 
         # Create the second window for kinetic energy
@@ -103,8 +142,10 @@ class PlotterGUI:
         self.energy_plot.setLabel('bottom', 'Time', units='s')
         self.energy_plot.showGrid(x=True, y=True)
 
+        ###########################################################################################
 
 
+        # SOME STUFF left to do
         # Background ZMQ thread
         self.receiver = receiver
         # self.receiver.data_received.connect(self.update_plot)
