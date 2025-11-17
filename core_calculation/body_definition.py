@@ -58,6 +58,10 @@ class Body:
 
     @property
     def kinetic_energy(self):
+        """
+        corps = Body()
+        print(corps.kinetic_energy)
+        """
         return 0.5 * self.mass * np.linalg.norm(self.velocity) ** 2
     
     def __repr__(self):
