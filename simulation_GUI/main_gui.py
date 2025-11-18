@@ -76,12 +76,14 @@ class PlotterGUI:
 
 
         ## III/ Do the plot of the basis of each body (if needed)
+        self.basis_lines = {}
         for i, elt in enumerate(bodies.items()):
+            basis_line_body = list()
             cle, dico = elt
             name = dico["name"]
             if dico["representation"] == "3D_solid_body":
                 base = np.array(all_basis[cle]).reshape((3, 3))
-                print(base)
+                # print(base)
                 origin = init_pos[i, :]
 
                 # Create lines for each axis
@@ -91,6 +93,9 @@ class PlotterGUI:
                     line_data = np.array([origin, origin + axis])
                     axis_line = gl.GLLinePlotItem(pos=line_data, color=colors[j], width=2, antialias=True)
                     self.view.addItem(axis_line)
+                    basis_line_body.append(axis_line)
+                self.basis_lines[name] = basis_line_body
+                
 
 
 
@@ -166,11 +171,12 @@ class PlotterGUI:
         this function will allow us to update all the plots in one call
         the main usecase is to save history of positions and speeds more easily
         """
-        # print("update_all_plots called", matrix_from_zmq.shape)
-        # print(matrix_from_zmq)
+        # FIRST : lets extract the info from the matrix
         points_position = matrix_from_zmq[0:3, 1:].T
         points_velocity = matrix_from_zmq[3:6, 1:].T
         potential_energy_bodies = matrix_from_zmq[6, 1:]
+
+
         for i, elt in enumerate(self.dict_simu['objects'].items()):
             cle, dico = elt
             self.all_history[dico["name"]][self.num_point, :] = points_position[i, :]
@@ -187,9 +193,28 @@ class PlotterGUI:
 
     def update_plot(self, matrix_from_zmq):
         """Called in GUI thread when ZMQ thread emits new data."""
+
+        # FIRST : extraction of the information that are relevant to us
         points = matrix_from_zmq[0:3, 1:].T
+        velocities = matrix_from_zmq[3:6, 1:].T
+        basis_matrices = matrix_from_zmq[7:7+9, 1:].T.reshape((self.nb_of_bodies, 3, 3))
+        # print(basis_matrices)
+
         # print(matrix_from_zmq)
         self.scatter.setData(pos=points)
+        # update basis lines if needed
+        for i, elt in enumerate(self.dict_simu['objects'].items()):
+            cle, dico = elt
+            name = dico["name"]
+            if dico["representation"] == "3D_solid_body":
+                origin = points[i, :]
+                base = basis_matrices[i, :, :]
+
+                # Update lines for each axis
+                for j in range(3):
+                    axis = base[j, :]
+                    line_data = np.array([origin, origin + axis])
+                    self.basis_lines[name][j].setData(pos=line_data)
         if self.plot_traj:
             for i, elt in enumerate(self.dict_simu['objects'].items()):
                 # print("elt:", elt)

@@ -127,7 +127,7 @@ class ZMQReceiver(QThread):
 
                 elif topic == b"data/":
                     # print("Data received.")
-                    arr = np.frombuffer(msg, dtype="float64").reshape(7, -1)
+                    arr = np.frombuffer(msg, dtype="float64").reshape(3+3+1+3*3, -1)
                     # print("arr", arr)
                     self.data_received.emit(arr)  # send to GUI thread
                 
