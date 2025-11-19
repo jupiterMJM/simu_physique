@@ -110,6 +110,25 @@ class Body:
                 "initial_base": self.basis.flatten().tolist(),
             }
     
+    @property
+    def euler_angle(self):
+        """
+        compute the Euler angles of the body from its basis
+        :return: np.array, Euler angles of the body in radians
+        in the yaw pitch roll (ZYX) convention
+        """
+        if self.representation != "3D_solid_body":
+            raise ValueError(f"Body {self.name} is not a 3D solid body. Cannot compute Euler angles.")
+        R = self.basis
+
+        sy = np.sqrt(R[0, 0] ** 2 + R[1, 0] ** 2)
+        singular = sy < 1e-6
+        if not singular:
+
+            theta = np.arctan2(R[2, 1], R[2, 2])
+            phi = np.arctan2(-R[2, 0], sy)
+            psi = np.arctan2(R[1, 0], R[0, 0])
+
     # @property
     # def position(self):
     #     return self._position
