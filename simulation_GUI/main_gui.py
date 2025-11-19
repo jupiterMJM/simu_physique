@@ -19,7 +19,7 @@ import sys
 from zmq_monitor import ZMQReceiver, context
 from annexe_main_gui import *
 from collections import deque
-
+from scipy.spatial.transform import Rotation as R
 
 class PlotterGUI:
     def __init__(self, receiver: ZMQReceiver = None, dict_simu=None, plot_traj=False):
@@ -82,14 +82,15 @@ class PlotterGUI:
             cle, dico = elt
             name = dico["name"]
             if dico["representation"] == "3D_solid_body":
-                base = np.array(all_basis[cle]).reshape((3, 3))
+                quaternion_base = np.array(all_basis[cle])
+                base = R.from_quat(quaternion_base, scalar_first=True).as_matrix()
                 # print(base)
                 origin = init_pos[i, :]
 
                 # Create lines for each axis
                 colors = [(1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1)]
                 for j in range(3):
-                    axis = base[j, :]
+                    axis = base[:, j]
                     line_data = np.array([origin, origin + axis])
                     axis_line = gl.GLLinePlotItem(pos=line_data, color=colors[j], width=2, antialias=True)
                     self.view.addItem(axis_line)
@@ -197,7 +198,8 @@ class PlotterGUI:
         # FIRST : extraction of the information that are relevant to us
         points = matrix_from_zmq[0:3, 1:].T
         velocities = matrix_from_zmq[3:6, 1:].T
-        basis_matrices = matrix_from_zmq[7:7+9, 1:].T.reshape((self.nb_of_bodies, 3, 3))
+        basis_matrices_quaternion = matrix_from_zmq[7:7+4, 1:]
+        # print(basis_matrices_quaternion)
         # print(basis_matrices)
 
         # print(matrix_from_zmq)
@@ -208,11 +210,11 @@ class PlotterGUI:
             name = dico["name"]
             if dico["representation"] == "3D_solid_body":
                 origin = points[i, :]
-                base = basis_matrices[i, :, :]
-
+                base_quaternion = basis_matrices_quaternion[:, i]
+                base = R.from_quat(base_quaternion, scalar_first=True).as_matrix()
                 # Update lines for each axis
                 for j in range(3):
-                    axis = base[j, :]
+                    axis = base[:, j]
                     line_data = np.array([origin, origin + axis])
                     self.basis_lines[name][j].setData(pos=line_data)
         if self.plot_traj:

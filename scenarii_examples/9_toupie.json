@@ -10,11 +10,11 @@
         "toupie":{
             "name" : "toupie",
             "mass": 0.5,
-            "initial_basis" : [
-                [1, 0, 0],
-                [0, 1, 0],
-                [0, 0, 1]
-            ],
+            "initial_basis" : {
+                "e1": [1, 0, 0],
+                "e2": [0, 1, 0],
+                "e3": [0, 0, 1]
+            },
             "init_position": [0, 0, 0],
             "init_velocity": [0, 0, 0.5]
         }

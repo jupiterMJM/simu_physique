@@ -75,7 +75,8 @@ def generate_message(simu:Simulation):
     then each column will be a body with its parameters (positionx3 and velocityx3 and internal potential energyx1)
     TODO on the first communication think about sending all the information about the bodies (mass, name, ...) but only once
     """
-    msg_array = np.zeros((3+3+1+3*3, len(simu.bodies)+1), dtype='float64')
+    # 3 for position, 3 for velocity, 1 for potential energy, 4 for quaternion elements
+    msg_array = np.zeros((3+3+1+4, len(simu.bodies)+1), dtype='float64')
     # general parameters
     msg_array[0, 0] = simu.dt
     msg_array[1, 0] = simu.current_time
@@ -88,9 +89,9 @@ def generate_message(simu:Simulation):
         msg_array[3:6, i+1] = body.velocity.flatten()
         msg_array[6, i+1] = potential_all_bodies[body.name]
         if body.representation == "3D_solid_body":
-            msg_array[7:7+3*3, i+1] = body.basis.flatten()
+            msg_array[7:7+4, i+1] = body.local_basis._quaternion.flatten()
         else:
-            msg_array[7:7+3*3, i+1] = np.array([np.nan, np.nan, np.nan])
+            msg_array[7:7+4, i+1] = np.array([np.nan, np.nan, np.nan])
     # print("msg_array:", msg_array)
     return msg_array
 
