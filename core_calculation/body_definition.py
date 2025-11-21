@@ -12,7 +12,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 import numpy as np
-from local_basis import LocalBasis
+from local_basis import LocalBasis, quat_mul
+from scipy.spatial.transform import Rotation as R
 
 class Body:
     """
@@ -20,7 +21,7 @@ class Body:
     """
 
     def __init__(self, mass=None, name=None, init_position=None, init_velocity=None,
-                 initial_basis: list[np.array] | dict[list]=None, **args): # init_position and init_velocity are at None bcs limitation of np.array that is run only once
+                 initial_basis: list[np.array] | dict[list]=None, initial_angular_velocity:list[float] = None, **args): # init_position and init_velocity are at None bcs limitation of np.array that is run only once
         """
         initiate the physical body
         :param mass: float, mass of the body in kg
@@ -30,6 +31,7 @@ class Body:
         :param initial_base: the axis of the local basis of the body in the main reference frame
             either a list of 3 np.array (each np.array is an axis of the basis)
             or a dict with keys "e1", "e2", "e3" and values as list
+        :param initial_angular_velocity : the initial angular velocity IN THE LOCAL BASE in rad/s
         :param kwargs: (type: dict) provide a way to pass directly all the parameters of the body
         :note: if same parameters are provided in kwargs and as explicit parameters, the explicit parameters will be used
                          and a warning will be raised
@@ -62,8 +64,7 @@ class Body:
         # setting default values if not provided
         self.position = np.array([0, 0, 0], dtype="float64") if init_position is None else np.array(init_position, dtype="float64")
         self.velocity = np.array([0, 0, 0], dtype="float64") if init_velocity is None else np.array(init_velocity, dtype="float64")
-        
-        
+
         if initial_basis:
             self.representation = "3D_solid_body"
             if type(initial_basis) == list:
@@ -77,15 +78,17 @@ class Body:
                                  np.array(initial_basis["e3"], dtype="float64")]
             print(initial_basis)
             self.local_basis = LocalBasis(initial_basis)
-
-            # if not check_orthonormal(np.array(initial_basis, dtype="float64")):
-            #     print(f"[WARNING] The provided initial basis for body {self.name} is not orthonormal. It will be orthonormalised using the direct method.")
-            #     basis = direct_orthonormalisation(np.array(initial_basis, dtype="float64"))
-            #     self.basis = np.array(basis, dtype="float64")
-            # else:
-            #     self.basis = np.array(initial_basis, dtype="float64")
+            if initial_angular_velocity is None:
+                initial_angular_velocity = [0, 0, 0]
+            print(initial_angular_velocity)
+            self.angular_velocity = np.array(initial_angular_velocity, dtype="float64")
+            # print("mdrrr", self.angular_velocity)
+            self.quaternion_angular_velocity = 1/2 * quat_mul(self.local_basis.quaternion, np.array([0, *initial_angular_velocity], dtype="float64"))
+            print(self.quaternion_angular_velocity)
         else:
             self.representation = "point_mass"
+            if initial_angular_velocity is not None:
+                raise Exception("[BODY] You cannot define an angular velocity for a point-mass body")
             self.local_basis = None
             
 
@@ -122,7 +125,7 @@ class Body:
         if self.representation == "point_mass":
             base_to_send = np.nan(4).tolist()
         else:
-            base_to_send = self.local_basis._quaternion.flatten().tolist()
+            base_to_send = self.local_basis.quaternion.flatten().tolist()
         return {
                 "mass": self.mass,
                 "name": self.name,

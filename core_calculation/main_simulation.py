@@ -89,7 +89,7 @@ def generate_message(simu:Simulation):
         msg_array[3:6, i+1] = body.velocity.flatten()
         msg_array[6, i+1] = potential_all_bodies[body.name]
         if body.representation == "3D_solid_body":
-            msg_array[7:7+4, i+1] = body.local_basis._quaternion.flatten()
+            msg_array[7:7+4, i+1] = body.local_basis.quaternion.flatten()
         else:
             msg_array[7:7+4, i+1] = np.array([np.nan, np.nan, np.nan])
     # print("msg_array:", msg_array)

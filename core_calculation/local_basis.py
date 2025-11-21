@@ -10,6 +10,17 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.transform import Rotation as R
 
+def quat_mul(q, p):
+    w1, x1, y1, z1 = q
+    w2, x2, y2, z2 = p
+    return np.array([
+        w1*w2 - x1*x2 - y1*y2 - z1*z2,
+        w1*x2 + x1*w2 + y1*z2 - z1*y2,
+        w1*y2 - x1*z2 + y1*w2 + z1*x2,
+        w1*z2 + x1*y2 - y1*x2 + z1*w2
+    ])
+
+
 def check_good_definition_transfer_matrix(matrice: np.ndarray):
     """
     Check that the transfer matrix moves from the local basis to the global basis.
@@ -109,8 +120,8 @@ class LocalBasis:
             else:
                 raise Exception("[LOCAL_BASIS] You try to initiate local basis by several ways. Remove one of them")
 
-        self._quaternion = temp_local_basis.as_quat(scalar_first=True)
-        self._local_basis = R.from_quat(self._quaternion, scalar_first=True)
+        _quaternion = temp_local_basis.as_quat(scalar_first=True)
+        self._local_basis = R.from_quat(_quaternion, scalar_first=True)
         print("done")
 
 
@@ -136,6 +147,14 @@ class LocalBasis:
         this function returns a 3*3 matrix whose COLUMN are e_1, e_2, e_3
         """
         return self._local_basis.as_matrix()
+    
+    @property
+    def quaternion(self):
+        """
+        return the quaternion as a numpy array of shape (4,)
+        convention : [q_w, q_x, q_y, q_z]
+        """
+        return self._local_basis.as_quat(scalar_first=True)
 
 
     def plot_basis(self, ax=None, scale=1.0, color="r"):
