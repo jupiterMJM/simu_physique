@@ -25,7 +25,7 @@ class ZMQReceiver(QThread):
     """Background thread that listens to ZMQ and emits new data."""
     data_received = pyqtSignal(object)  # signal will send numpy array
 
-    def __init__(self, timeout=5):
+    def __init__(self, timeout=5, receive_as_array:bool=True):
         super().__init__()
         self.zmq_running = False
         self.simu_running = False
@@ -36,6 +36,8 @@ class ZMQReceiver(QThread):
 
         self.setup_zmq_recv()
         self.zmq_running = True
+
+        self.receive_as_array = receive_as_array
         
 
     def setup_zmq_recv(self):
@@ -73,11 +75,14 @@ class ZMQReceiver(QThread):
             if self.sub_data in events:
                 msg = self.sub_data.recv_multipart(flags=zmq.NOBLOCK)
                 print(msg)
-                topic, dict_json = msg[0], msg[1]
+                topic, dict_json = msg[0], json.loads(msg[1])
                 if topic == b"info/":
                     print("got the info!!!!")
-                    # print(dict_json)
-                    return json.loads(dict_json)
+                    print(dict_json)
+                    if not ((self.receive_as_array and dict_json["msg_format"] == "array") or (not self.receive_as_array and dict_json["msg_format"] == "json")) :
+                        print("Warning: the requested data format does not match the simulation output format.")
+                        raise Exception("[ZMQ CLASS] Data format mismatch between receiver and simulation.")
+                    return dict_json
             time.sleep(0.1)
 
     def run(self):
@@ -120,16 +125,23 @@ class ZMQReceiver(QThread):
                         continue
                 
                 elif topic == b"heartbeat/":
-                    print(f"Heartbeat received. {msg}")
+                    # print(f"Heartbeat received. {msg}")
                     self.check_for_heartbeat = True
                     self.last_heartbeat = time.time()
                     
 
                 elif topic == b"data/":
-                    # print("Data received.")
-                    arr = np.frombuffer(msg, dtype="float64").reshape(3+3+1+4, -1)
-                    # print("arr", arr)
-                    self.data_received.emit(arr)  # send to GUI thread
+
+                    if self.receive_as_array:
+                        # print("Data received.")
+                        arr = np.frombuffer(msg, dtype="float64").reshape(3+3+1+4, -1)
+                        # print("arr", arr)
+                        self.data_received.emit(arr)  # send to GUI thread
+
+                    else:
+                        dict_json = msg.decode('utf-8')
+                        data_dict = json.loads(dict_json)
+                        self.data_received.emit(data_dict)
                 
                 else:
                     print(f"Unknown topic: {topic}")
