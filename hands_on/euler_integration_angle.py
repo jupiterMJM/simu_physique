@@ -25,14 +25,16 @@ trajectory[0] = q.as_quat(scalar_first=True)
 # ------------------------
 
 # I = np.eye(3)  # matrice d'inertie (exemple : sphère)
-I = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 5]])
-omega = np.array([0.0, 0.0, .1])  # vitesse angulaire initiale
-torque_local = np.array([1, 0.0, 0.0])  # moment constant dans la base locale
+I = np.array([[1, 0, 0], [0, 2, 0], [0, 0, 3]])
+omega = np.array([1, 0.2,0 ])  # vitesse angulaire initiale
+torque_local = np.array([0, 0.0, 0.0])  # moment constant dans la base locale
 
 q = R.from_quat([1, 0, 0, 0])  # quaternion initial
 trajectory = np.zeros((N+1, 4))
 trajectory[0] = q.as_quat(scalar_first=True)
 historique_angles = [q.as_euler('ZYX')]
+
+
 
 for i in range(1, N):
     # Calcul du moment dans la base globale

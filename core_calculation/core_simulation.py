@@ -150,13 +150,13 @@ class Simulation:
 
                 if body.representation == "3D_solid_body":
                     # torque = np.array([0, 0, 1]).T
-                    torque = np.array([1, 0, 0]).T
+                    torque_local = np.array([0, 0, 0]).T
                     # it s the derivative of omega => it s the acceleration of the angular basis!!!!!!
-                    body.angular_velocity += np.linalg.inv(body.inertia_matrix) @ (torque  # update angular velocity
+                    body.angular_velocity += np.linalg.inv(body.inertia_matrix) @ (torque_local  # update angular velocity
                         - np.cross(body.angular_velocity, body.inertia_matrix @ body.angular_velocity)
                     )*self.dt
                     dq = R.from_rotvec(body.angular_velocity * self.dt)
-                    body.local_basis._local_basis = body.local_basis._local_basis * dq
+                    body.local_basis._local_basis = dq * body.local_basis._local_basis
                     # print(body.local_basis.euler_angle)
 
 

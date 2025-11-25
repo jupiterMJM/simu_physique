@@ -83,11 +83,9 @@ class Body:
                 initial_angular_velocity = [0, 0, 0]
             print(initial_angular_velocity)
             self.angular_velocity = np.array(initial_angular_velocity, dtype="float64")
-            self.quaternion_angular_velocity = 1/2 * quat_mul(self.local_basis.quaternion, np.array([0, *initial_angular_velocity], dtype="float64"))
+            # self.quaternion_angular_velocity = 1/2 * quat_mul(self.local_basis.quaternion, np.array([0, *initial_angular_velocity], dtype="float64"))
             # self.inertia_matrix = np.array(inertia_matrix, dtype="float64") if inertia_matrix is not None else np.eye(3)
             self.inertia_matrix = np.array([inertia_matrix["e1"], inertia_matrix["e2"], inertia_matrix["e3"]], dtype="float64").T if inertia_matrix is not None else np.eye(3)
-            print(self.inertia_matrix)
-            print(self.quaternion_angular_velocity)
         else:
             self.representation = "point_mass"
             if initial_angular_velocity is not None:

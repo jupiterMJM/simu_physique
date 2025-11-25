@@ -24,7 +24,7 @@ import pickle
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-json_file = r"scenarii_examples\9_toupie.json"
+json_file = r"scenarii_examples\9_free_euler_top.json"
 # dt and time_simulation are defined in the json file
 
 # speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
