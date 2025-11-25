@@ -64,91 +64,94 @@ class PlotterGUI:
         g.scale(2, 2, 1)
         self.view.addItem(g)
 
-
-        ## II/ Plot the initial positions of the bodies
-        self.scatter = gl.GLScatterPlotItem(pos=init_pos, color=(1, 0, 0, 1), size=5)
-        self.view.addItem(self.scatter)
-        # Adjust the camera to ensure all points are visible
-        max_extent = np.max(np.linalg.norm(init_pos, axis=1))  # Calculate the maximum distance from origin
-        # maybe not the best way to do it but it works for now
-        if max_extent == 0 or max_extent < self.view.cameraPosition().length():
-            pass
-        else:
-            self.view.setCameraPosition(distance=max_extent * 2, elevation=20, azimuth=30)
-
-
-        ## III/ Do the plot of the basis of each body (if needed)
-        for i, elt in enumerate(bodies.items()):
-            cle, dico = elt
-            name = dico["name"]
-            if dico["representation"] == "3D_solid_body":
-                base = np.array(all_basis[cle]).reshape((3, 3))
-                print(base)
-                origin = init_pos[i, :]
-
-                # Create lines for each axis
-                colors = [(1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1)]
-                for j in range(3):
-                    axis = base[j, :]
-                    line_data = np.array([origin, origin + axis])
-                    axis_line = gl.GLLinePlotItem(pos=line_data, color=colors[j], width=2, antialias=True)
-                    self.view.addItem(axis_line)
+        if self.dict_simu["plotting"] == []:
+            self.dict_simu["plotting"] = ["3D"]
+        if "3D" in self.dict_simu["plotting"]:
+            ## II/ Plot the initial positions of the bodies
+            self.scatter = gl.GLScatterPlotItem(pos=init_pos, color=(1, 0, 0, 1), size=5)
+            self.view.addItem(self.scatter)
+            # Adjust the camera to ensure all points are visible
+            max_extent = np.max(np.linalg.norm(init_pos, axis=1))  # Calculate the maximum distance from origin
+            # maybe not the best way to do it but it works for now
+            if max_extent == 0 or max_extent < self.view.cameraPosition().length():
+                pass
+            else:
+                self.view.setCameraPosition(distance=max_extent * 2, elevation=20, azimuth=30)
 
 
-
-        ## IV/ Plot of trajectories (if needed)
-        if self.plot_traj:
-            self.all_trajectory = {}
+            ## III/ Do the plot of the basis of each body (if needed)
             for i, elt in enumerate(bodies.items()):
                 cle, dico = elt
                 name = dico["name"]
-                self.all_history[name][0, :] = init_pos[i, :]
+                if dico["representation"] == "3D_solid_body":
+                    base = np.array(all_basis[cle]).reshape((3, 3))
+                    print(base)
+                    origin = init_pos[i, :]
 
-                body_trajectory = gl.GLLinePlotItem(
-                    pos=np.zeros((2, 3)),       # need at least two points to draw the first line
-                    color=(1, 1, 0, 1),
-                    width=2,
-                    antialias=True,
-                    mode="line_strip"
-                )
-                cle, dico = elt
-                self.all_trajectory[dico["name"]] = body_trajectory
+                    # Create lines for each axis
+                    colors = [(1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1)]
+                    for j in range(3):
+                        axis = base[j, :]
+                        line_data = np.array([origin, origin + axis])
+                        axis_line = gl.GLLinePlotItem(pos=line_data, color=colors[j], width=2, antialias=True)
+                        self.view.addItem(axis_line)
 
-                self.view.addItem(body_trajectory)
 
+
+            ## IV/ Plot of trajectories (if needed)
+            if self.plot_traj:
+                self.all_trajectory = {}
+                for i, elt in enumerate(bodies.items()):
+                    cle, dico = elt
+                    name = dico["name"]
+                    self.all_history[name][0, :] = init_pos[i, :]
+
+                    body_trajectory = gl.GLLinePlotItem(
+                        pos=np.zeros((2, 3)),       # need at least two points to draw the first line
+                        color=(1, 1, 0, 1),
+                        width=2,
+                        antialias=True,
+                        mode="line_strip"
+                    )
+                    cle, dico = elt
+                    self.all_trajectory[dico["name"]] = body_trajectory
+
+                    self.view.addItem(body_trajectory)
+
+            self.add_cartesian_base()
         ###########################################################################################
 
 
         ###########################################################################################
         ## CREATION OF THE SECOND WINDOW : kinetic energy of the bodies
         ###########################################################################################
+        if "energy" in self.dict_simu["plotting"]:
 
-
-        # Create the second window for kinetic energy
-        self.energy_window = pg.GraphicsLayoutWidget(show=True)
-        self.energy_window.setWindowTitle("Energies of Bodies")
-        self.energy_plot = self.energy_window.addPlot(title="Energies")
-        self.energy_plot.addLegend()
-        self.kinetic_energy_curves = {
-            name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DashLine), name=f"K_{name}")
-            for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
-        }
-        self.potential_energy_curves = {
-            name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DotLine), name=f"P_{name}")
-            for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
-        }
-        self.mechanical_energy_curves = {
-            name: self.energy_plot.plot(pen=pg.mkPen(color), name=f"E_{name}")
-            for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
-        }
-        self.total_mechanical_energy_syst_curve = self.energy_plot.plot(pen=pg.mkPen('w', width=2), name="Total mech. energy")
-        self.energy_plot.setLabel('left', 'Energy', units='J')
-        self.energy_plot.setLabel('bottom', 'Time', units='s')
-        self.energy_plot.showGrid(x=True, y=True)
+            # Create the second window for kinetic energy
+            self.energy_window = pg.GraphicsLayoutWidget(show=True)
+            self.energy_window.setWindowTitle("Energies of Bodies")
+            self.energy_plot = self.energy_window.addPlot(title="Energies")
+            self.energy_plot.addLegend()
+            self.kinetic_energy_curves = {
+                name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DashLine), name=f"K_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.potential_energy_curves = {
+                name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DotLine), name=f"P_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.mechanical_energy_curves = {
+                name: self.energy_plot.plot(pen=pg.mkPen(color), name=f"E_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.total_mechanical_energy_syst_curve = self.energy_plot.plot(pen=pg.mkPen('w', width=2), name="Total mech. energy")
+            self.energy_plot.setLabel('left', 'Energy', units='J')
+            self.energy_plot.setLabel('bottom', 'Time', units='s')
+            self.energy_plot.showGrid(x=True, y=True)
 
         ###########################################################################################
 
-        self.add_cartesian_base()
+        
 
         # SOME STUFF left to do
         # Background ZMQ thread
@@ -192,8 +195,10 @@ class PlotterGUI:
             self.buffer_once_completed = True
         self.num_point = self.num_point if self.num_point < self.N else 0
         # and finally update the plots
-        self.update_plot(points_position)
-        self.update_energy_plot()
+        if "3D" in self.dict_simu["plotting"]:
+            self.update_plot(points_position)
+        if "energy" in self.dict_simu["plotting"]:
+            self.update_energy_plot()
 
     def update_plot(self, body_position):
         """Called in GUI thread when ZMQ thread emits new data."""
