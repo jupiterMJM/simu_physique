@@ -30,5 +30,5 @@
     "forces": {
     },
 
-    "plotting": ["3D", "energy"]
+    "plotting": ["3D", "euler_angle"]
 }

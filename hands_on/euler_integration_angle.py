@@ -24,7 +24,8 @@ trajectory[0] = q.as_quat(scalar_first=True)
 # Boucle d'intégration avec moment constant dans la base locale
 # ------------------------
 
-I = np.eye(3)  # matrice d'inertie (exemple : sphère)
+# I = np.eye(3)  # matrice d'inertie (exemple : sphère)
+I = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 5]])
 omega = np.array([0.0, 0.0, .1])  # vitesse angulaire initiale
 torque_local = np.array([1, 0.0, 0.0])  # moment constant dans la base locale
 
@@ -65,4 +66,19 @@ plt.ylabel('Angle (rad)')
 plt.title("Angles d'Euler au cours du temps")
 plt.legend()
 plt.grid()
+
+# Calcul des dérivées des angles d'Euler
+derivatives = np.gradient(np.unwrap(historique_angles, axis=0), dt, axis=0)
+
+# Visualisation des dérivées des angles d'Euler
+plt.figure()
+plt.plot(np.arange(N)*dt, derivatives[:, 0], label="d(Yaw)/dt (Z)")
+plt.plot(np.arange(N)*dt, derivatives[:, 1], label="d(Pitch)/dt (Y)")
+plt.plot(np.arange(N)*dt, derivatives[:, 2], label="d(Roll)/dt (X)")
+plt.xlabel('Temps (s)')
+plt.ylabel('Vitesse angulaire (rad/s)')
+plt.title("Dérivées des angles d'Euler au cours du temps")
+plt.legend()
+plt.grid()
+
 plt.show()
