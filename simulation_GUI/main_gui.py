@@ -19,7 +19,7 @@ import sys
 from zmq_monitor import ZMQReceiver, context
 from annexe_main_gui import *
 from collections import deque
-
+from scipy.spatial.transform import Rotation as R
 
 receive_as_array = False
 
@@ -79,22 +79,28 @@ class PlotterGUI:
                 self.view.setCameraPosition(distance=max_extent * 2, elevation=20, azimuth=30)
 
 
-            ## III/ Do the plot of the basis of each body (if needed)
-            for i, elt in enumerate(bodies.items()):
-                cle, dico = elt
-                name = dico["name"]
-                if dico["representation"] == "3D_solid_body":
-                    base = np.array(all_basis[cle]).reshape((3, 3))
-                    print(base)
-                    origin = init_pos[i, :]
+        ## III/ Do the plot of the basis of each body (if needed)
+        self.basis_lines = {}
+        for i, elt in enumerate(bodies.items()):
+            basis_line_body = list()
+            cle, dico = elt
+            name = dico["name"]
+            if dico["representation"] == "3D_solid_body":
+                quaternion_base = np.array(all_basis[cle])
+                base = R.from_quat(quaternion_base, scalar_first=True).as_matrix()
+                # print(base)
+                origin = init_pos[i, :]
 
-                    # Create lines for each axis
-                    colors = [(1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1)]
-                    for j in range(3):
-                        axis = base[j, :]
-                        line_data = np.array([origin, origin + axis])
-                        axis_line = gl.GLLinePlotItem(pos=line_data, color=colors[j], width=2, antialias=True)
-                        self.view.addItem(axis_line)
+                # Create lines for each axis
+                colors = [(1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1)]
+                for j in range(3):
+                    axis = base[:, j]
+                    line_data = np.array([origin, origin + axis])
+                    axis_line = gl.GLLinePlotItem(pos=line_data, color=colors[j], width=2, antialias=True)
+                    self.view.addItem(axis_line)
+                    basis_line_body.append(axis_line)
+                self.basis_lines[name] = basis_line_body
+                
 
 
 
@@ -176,12 +182,14 @@ class PlotterGUI:
             points_position = info_from_zmq[0:3, 1:].T
             points_velocity = info_from_zmq[3:6, 1:].T
             potential_energy_bodies = info_from_zmq[6, 1:]
+            basis_matrices_quaternion = info_from_zmq[7:7+4, 1:]
             self.time_current_history.append(info_from_zmq[1, 0])
 
         else: # receive info_from_zmq as a dict
             points_position = np.array([info_from_zmq["bodies"][name]["position"] for name in self.dict_simu['objects'].keys()])
             points_velocity = np.array([info_from_zmq["bodies"][name]["velocity"] for name in self.dict_simu['objects'].keys()])
             potential_energy_bodies = np.array([info_from_zmq["bodies"][name]["potential_energy"] for name in self.dict_simu['objects'].keys()])
+            basis_matrices_quaternion = np.array([info_from_zmq["bodies"][name]["quaternion"] for name in self.dict_simu['objects'].keys()]).T
             self.time_current_history.append(info_from_zmq["current_time"])
 
         for i, elt in enumerate(self.dict_simu['objects'].items()):
@@ -196,15 +204,34 @@ class PlotterGUI:
         self.num_point = self.num_point if self.num_point < self.N else 0
         # and finally update the plots
         if "3D" in self.dict_simu["plotting"]:
-            self.update_plot(points_position)
+            self.update_plot(points_position, basis_matrices_quaternion)
         if "energy" in self.dict_simu["plotting"]:
             self.update_energy_plot()
 
-    def update_plot(self, body_position):
+    def update_plot(self, body_position, basis_matrices_quaternion):
         """Called in GUI thread when ZMQ thread emits new data."""
+
+        # FIRST : extraction of the information that are relevant to us
         # points = matrix_from_zmq[0:3, 1:].T
+        
+        # print(basis_matrices_quaternion)
+        # print(basis_matrices)
+
         # print(matrix_from_zmq)
         self.scatter.setData(pos=body_position)
+        # update basis lines if needed
+        for i, elt in enumerate(self.dict_simu['objects'].items()):
+            cle, dico = elt
+            name = dico["name"]
+            if dico["representation"] == "3D_solid_body":
+                origin = body_position[i, :]
+                base_quaternion = basis_matrices_quaternion[:, i]
+                base = R.from_quat(base_quaternion, scalar_first=True).as_matrix()
+                # Update lines for each axis
+                for j in range(3):
+                    axis = base[:, j]
+                    line_data = np.array([origin, origin + axis])
+                    self.basis_lines[name][j].setData(pos=line_data)
         if self.plot_traj:
             for i, elt in enumerate(self.dict_simu['objects'].items()):
                 # print("elt:", elt)

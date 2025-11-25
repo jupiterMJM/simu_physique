@@ -26,6 +26,7 @@ from core_calculation.force_definition import *
 import json
 import time
 from core_calculation.force_definition_physical_interaction import *
+from scipy.spatial.transform import Rotation as R
 
 class Simulation:
     """
@@ -137,40 +138,62 @@ class Simulation:
         # first, we compute the forces acting on each body
         forces = self.compute_forces()
 
-        # then, we update the position and velocity of each body
+
         for body in self.bodies:
-            # compute acceleration
             acceleration = forces[body.name] / body.mass
             if verbose: print("[ACCEL]", body.name, acceleration)
             if update_bodies:
                 # update position
                 if verbose: print(f"[POS UPT] {body.name} from {body.position} to ", end ="")
-                body.position = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
-                if verbose: print(body.position)
-            else:
-                # only do the computation but not the update (useful for the benchmark)
-                _ = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
+                body.velocity += acceleration * self.dt
+                body.position += body.velocity * self.dt
 
-        # compute new forces (for velocity update)
-        new_forces = self.compute_forces()
+                if body.representation == "3D_solid_body":
+                    # torque = np.array([0, 0, 1]).T
+                    torque = np.array([1, 0, 0]).T
+                    # it s the derivative of omega => it s the acceleration of the angular basis!!!!!!
+                    body.angular_velocity += np.linalg.inv(body.inertia_matrix) @ (torque  # update angular velocity
+                        - np.cross(body.angular_velocity, body.inertia_matrix @ body.angular_velocity)
+                    )*self.dt
+                    dq = R.from_rotvec(body.angular_velocity * self.dt)
+                    body.local_basis._local_basis = body.local_basis._local_basis * dq
+                    # print(body.local_basis.euler_angle)
 
-        for body in self.bodies:
-            # compute new acceleration
-            old_acceleration = forces[body.name] / body.mass
-            new_acceleration = new_forces[body.name] / body.mass
-            if verbose: print("[NEW ACCEL]", body.name, new_acceleration)
-            if update_bodies:
-                # update velocity
-                if verbose : print(f"[VEL UPT] {body.name} from {body.velocity} to ", end="")
-                body.velocity =  body.velocity + (old_acceleration + new_acceleration)/2 * self.dt
-                if verbose : print(body.velocity)
-                # body.velocity =  body.velocity + acceleration * self.dt
-            else:
-                # only do the computation but not the update (useful for the benchmark)
-                _ = body.velocity +  (old_acceleration + new_acceleration)/2 * self.dt
-                # _ = body.velocity +  acceleration * self.dt
+
+        # # then, we update the position and velocity of each body
+        # for body in self.bodies:
+        #     # compute acceleration
+        #     acceleration = forces[body.name] / body.mass
+        #     if verbose: print("[ACCEL]", body.name, acceleration)
+        #     if update_bodies:
+        #         # update position
+        #         if verbose: print(f"[POS UPT] {body.name} from {body.position} to ", end ="")
+        #         body.position = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
+        #         if verbose: print(body.position)
+        #     else:
+        #         # only do the computation but not the update (useful for the benchmark)
+        #         _ = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
+
+        # # compute new forces (for velocity update)
+        # new_forces = self.compute_forces()
+
+        # for body in self.bodies:
+        #     # compute new acceleration
+        #     old_acceleration = forces[body.name] / body.mass
+        #     new_acceleration = new_forces[body.name] / body.mass
+        #     if verbose: print("[NEW ACCEL]", body.name, new_acceleration)
+        #     if update_bodies:
+        #         # update velocity
+        #         if verbose : print(f"[VEL UPT] {body.name} from {body.velocity} to ", end="")
+        #         body.velocity =  body.velocity + (old_acceleration + new_acceleration)/2 * self.dt
+        #         if verbose : print(body.velocity)
+        #         # body.velocity =  body.velocity + acceleration * self.dt
+        #     else:
+        #         # only do the computation but not the update (useful for the benchmark)
+        #         _ = body.velocity +  (old_acceleration + new_acceleration)/2 * self.dt
+        #         # _ = body.velocity +  acceleration * self.dt
                 
-        # print("x"*10)
+        # # print("x"*10)
 
     def run(self, update_bodies:bool=True, verbose=False, reduce_speed=True):
         """

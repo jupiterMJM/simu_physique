@@ -6,7 +6,14 @@ TODO orthonormaliser la base propre du corps (sinon c trop la merde pour gérer 
 """
 
 # importing libraries
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
 import numpy as np
+from local_basis import LocalBasis, quat_mul
+from scipy.spatial.transform import Rotation as R
 
 class Body:
     """
@@ -14,16 +21,18 @@ class Body:
     """
 
     def __init__(self, mass=None, name=None, init_position=None, init_velocity=None,
-                 initial_basis: np.array=None, **args): # init_position and init_velocity are at None bcs limitation of np.array that is run only once
+                 initial_basis: list[np.array] | dict[list]=None, initial_angular_velocity:list[float] = None, 
+                 inertia_matrix:dict[list] = None, **args): # init_position and init_velocity are at None bcs limitation of np.array that is run only once
         """
         initiate the physical body
         :param mass: float, mass of the body in kg
         :param name: str, name of the body
         :param init_position: np.array, initial position of the body in meters
         :param init_velocity: np.array, initial velocity of the body in m/s
-        :param initial_base: np.array, initial base vectors of the body (for rotation)
-            enable to represent a 3D body representation with orientation (solid body != point mass)
-            must represent the matrix transition from Eulerian "main orthonormal basis" to the body basis
+        :param initial_base: the axis of the local basis of the body in the main reference frame
+            either a list of 3 np.array (each np.array is an axis of the basis)
+            or a dict with keys "e1", "e2", "e3" and values as list
+        :param initial_angular_velocity : the initial angular velocity IN THE LOCAL BASE in rad/s
         :param kwargs: (type: dict) provide a way to pass directly all the parameters of the body
         :note: if same parameters are provided in kwargs and as explicit parameters, the explicit parameters will be used
                          and a warning will be raised
@@ -56,14 +65,34 @@ class Body:
         # setting default values if not provided
         self.position = np.array([0, 0, 0], dtype="float64") if init_position is None else np.array(init_position, dtype="float64")
         self.velocity = np.array([0, 0, 0], dtype="float64") if init_velocity is None else np.array(init_velocity, dtype="float64")
-        
-        
+
         if initial_basis:
             self.representation = "3D_solid_body"
-            self.initial_basis = np.array(initial_basis, dtype="float64")
+            if type(initial_basis) == list:
+                if len(initial_basis) != 3:
+                    raise ValueError(f"The provided initial basis for body {self.name} does not have 3 axes.")
+            elif type(initial_basis) == dict:
+                if set(initial_basis.keys()) != {"e1", "e2", "e3"}:
+                    raise ValueError(f"The provided initial basis for body {self.name} does not have the correct keys. It should have 'e1', 'e2', 'e3'.")
+                initial_basis = [np.array(initial_basis["e1"], dtype="float64"),
+                                 np.array(initial_basis["e2"], dtype="float64"),
+                                 np.array(initial_basis["e3"], dtype="float64")]
+            print(initial_basis)
+            self.local_basis = LocalBasis(initial_basis)
+            if initial_angular_velocity is None:
+                initial_angular_velocity = [0, 0, 0]
+            print(initial_angular_velocity)
+            self.angular_velocity = np.array(initial_angular_velocity, dtype="float64")
+            self.quaternion_angular_velocity = 1/2 * quat_mul(self.local_basis.quaternion, np.array([0, *initial_angular_velocity], dtype="float64"))
+            # self.inertia_matrix = np.array(inertia_matrix, dtype="float64") if inertia_matrix is not None else np.eye(3)
+            self.inertia_matrix = np.array([inertia_matrix["e1"], inertia_matrix["e2"], inertia_matrix["e3"]], dtype="float64").T if inertia_matrix is not None else np.eye(3)
+            print(self.inertia_matrix)
+            print(self.quaternion_angular_velocity)
         else:
             self.representation = "point_mass"
-            self.initial_basis = np.array([np.nan, np.nan, np.nan], dtype="float64")
+            if initial_angular_velocity is not None:
+                raise Exception("[BODY] You cannot define an angular velocity for a point-mass body")
+            self.local_basis = None
             
 
 
@@ -96,15 +125,40 @@ class Body:
         provide a json representation of the body
         :return: dict, json representation of the body
         """
+        if self.representation == "point_mass":
+            base_to_send = np.nan(4).tolist()
+        else:
+            base_to_send = self.local_basis.quaternion.flatten().tolist()
         return {
                 "mass": self.mass,
                 "name": self.name,
                 "init_position": self.position.flatten().tolist(),
                 "init_velocity": self.velocity.flatten().tolist(),
                 "representation": self.representation,
-                "initial_base": self.initial_basis.flatten().tolist(),
+                "initial_base": base_to_send,
+                "initial_angular_velocity": self.angular_velocity.flatten().tolist() if self.representation == "3D_solid_body" else np.nan(3).tolist(),
+                "inertia_matrix": self.inertia_matrix.flatten().tolist() if self.representation == "3D_solid_body" else np.nan(9).tolist(),
             }
     
+    # @property
+    # def euler_angle(self):
+    #     """
+    #     compute the Euler angles of the body from its basis
+    #     :return: np.array, Euler angles of the body in radians
+    #     in the yaw pitch roll (ZYX) convention
+    #     """
+    #     if self.representation != "3D_solid_body":
+    #         raise ValueError(f"Body {self.name} is not a 3D solid body. Cannot compute Euler angles.")
+    #     R = self.basis
+
+    #     sy = np.sqrt(R[0, 0] ** 2 + R[1, 0] ** 2)
+    #     singular = sy < 1e-6
+    #     if not singular:
+
+    #         theta = np.arctan2(R[2, 1], R[2, 2])
+    #         phi = np.arctan2(-R[2, 0], sy)
+    #         psi = np.arctan2(R[1, 0], R[0, 0])
+
     # @property
     # def position(self):
     #     return self._position
@@ -124,6 +178,35 @@ class Body:
     #     self._velocity = np.array(value, dtype="float64")
 
     
+def check_orthonormal(matrix):
+    """
+    Check if a matrix is orthonormal
+    :param matrix: np.array, matrix to check
+    :return: bool, True if the matrix is orthonormal, False otherwise
+    """
+    identity = np.eye(matrix.shape[0])
+    product = np.dot(matrix.T, matrix)
+    return np.allclose(product, identity)
+
+def direct_orthonormalisation(transition_matrix):
+    """
+    Orthonormalisation of a base using the direct method
+    :param transition_matrix: np.array, matrix representing the transition from the main basis to the body basis
+    :return: np.array, orthonormalised transition matrix
+    :note: the first axis will just be orthonormalised, the second will be made orthogonal to the first and then normalised,
+           the third will be made orthogonal to the first two and then normalised
+    """
+    u1 = transition_matrix[:, 0]
+    e1 = u1 / np.linalg.norm(u1)
+
+    u2 = transition_matrix[:, 1] - np.dot(transition_matrix[:, 1], e1) * e1
+    e2 = u2 / np.linalg.norm(u2)
+
+    u3 = transition_matrix[:, 2] - np.dot(transition_matrix[:, 2], e1) * e1 - np.dot(transition_matrix[:, 2], e2) * e2
+    e3 = u3 / np.linalg.norm(u3)
+
+    orthonormal_matrix = np.column_stack((e1, e2, e3))
+    return orthonormal_matrix
 
 if __name__ == "__main__":
     import json
