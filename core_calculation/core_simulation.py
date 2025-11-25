@@ -149,14 +149,13 @@ class Simulation:
                 body.position += body.velocity * self.dt
 
                 if body.representation == "3D_solid_body":
-                    # body.quaternion_angular_velocity += 0  # no torque considered for now
-                    # body.local_basis._quaternion += body.quaternion_angular_velocity * self.dt
-                    # body.local_basis._quaternion /= np.linalg.norm(body.local_basis._quaternion)  # normalize quaternion
-                    # print(body.local_basis._quaternion, body.quaternion_angular_velocity)
-                    # print(body.local_basis._quaternion, body.quaternion_angular_velocity)
+                    # torque = np.array([0, 0, 1]).T
+                    torque = np.array([1, 0, 0]).T
+                    # it s the derivative of omega => it s the acceleration of the angular basis!!!!!!
+                    body.angular_velocity += np.linalg.inv(body.inertia_matrix) @ (torque  # update angular velocity
+                        - np.cross(body.angular_velocity, body.inertia_matrix @ body.angular_velocity)
+                    )*self.dt
                     dq = R.from_rotvec(body.angular_velocity * self.dt)
-                    # print(type(dq), type(body.local_basis._local_basis))
-                    # body.local_basis._local_basis = body.local_basis._local_basis.as_quat(scalar_first=True) * dq.as_rotvec()
                     body.local_basis._local_basis = body.local_basis._local_basis * dq
                     # print(body.local_basis.euler_angle)
 

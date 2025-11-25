@@ -21,7 +21,8 @@ class Body:
     """
 
     def __init__(self, mass=None, name=None, init_position=None, init_velocity=None,
-                 initial_basis: list[np.array] | dict[list]=None, initial_angular_velocity:list[float] = None, **args): # init_position and init_velocity are at None bcs limitation of np.array that is run only once
+                 initial_basis: list[np.array] | dict[list]=None, initial_angular_velocity:list[float] = None, 
+                 inertia_matrix:dict[list] = None, **args): # init_position and init_velocity are at None bcs limitation of np.array that is run only once
         """
         initiate the physical body
         :param mass: float, mass of the body in kg
@@ -82,8 +83,10 @@ class Body:
                 initial_angular_velocity = [0, 0, 0]
             print(initial_angular_velocity)
             self.angular_velocity = np.array(initial_angular_velocity, dtype="float64")
-            # print("mdrrr", self.angular_velocity)
             self.quaternion_angular_velocity = 1/2 * quat_mul(self.local_basis.quaternion, np.array([0, *initial_angular_velocity], dtype="float64"))
+            # self.inertia_matrix = np.array(inertia_matrix, dtype="float64") if inertia_matrix is not None else np.eye(3)
+            self.inertia_matrix = np.array([inertia_matrix["e1"], inertia_matrix["e2"], inertia_matrix["e3"]], dtype="float64").T if inertia_matrix is not None else np.eye(3)
+            print(self.inertia_matrix)
             print(self.quaternion_angular_velocity)
         else:
             self.representation = "point_mass"
@@ -133,6 +136,8 @@ class Body:
                 "init_velocity": self.velocity.flatten().tolist(),
                 "representation": self.representation,
                 "initial_base": base_to_send,
+                "initial_angular_velocity": self.angular_velocity.flatten().tolist() if self.representation == "3D_solid_body" else np.nan(3).tolist(),
+                "inertia_matrix": self.inertia_matrix.flatten().tolist() if self.representation == "3D_solid_body" else np.nan(9).tolist(),
             }
     
     # @property

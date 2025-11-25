@@ -109,7 +109,8 @@ def generate_message(simu:Simulation, send_in_array=True):
             msg_dict["bodies"][body.name] = {
                 "position": body.position.flatten().tolist(),
                 "velocity": body.velocity.flatten().tolist(),
-                "potential_energy": float(potential_all_bodies[body.name])
+                "potential_energy": float(potential_all_bodies[body.name]),
+                "angular_velocity": body.angular_velocity.flatten().tolist() if body.representation == "3D_solid_body" else [np.nan, np.nan, np.nan],
             }
             if body.representation == "3D_solid_body":
                 msg_dict["bodies"][body.name]["quaternion"] = body.local_basis.quaternion.flatten().tolist()

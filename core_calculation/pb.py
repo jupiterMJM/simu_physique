@@ -9,12 +9,11 @@ import matplotlib.pyplot as plt
 # quaternion initial (scalar_first=True) : identité
 q = R.from_quat([1.0, 0.0, 0.0, 0.0], scalar_first=True)
 
-# vitesse angulaire locale constante : rotation de 2π rad/s autour de z
-omega = np.array([1, 1, 10])
+
 historique_angles = []
 
 dt = 0.01
-T = 10.0
+T = 50.0
 N = int(T / dt)
 
 # stockage des quaternions
@@ -22,21 +21,32 @@ trajectory = np.zeros((N+1, 4))
 trajectory[0] = q.as_quat(scalar_first=True)
 
 # ------------------------
-# Boucle d'intégration
+# Boucle d'intégration avec moment constant dans la base locale
 # ------------------------
 
-for i in range(1, N+1):
+I = np.eye(3)  # matrice d'inertie (exemple : sphère)
+omega = np.array([0.0, 0.0, .1])  # vitesse angulaire initiale
+torque_local = np.array([1, 0.0, 0.0])  # moment constant dans la base locale
+
+q = R.from_quat([1, 0, 0, 0])  # quaternion initial
+trajectory = np.zeros((N+1, 4))
+trajectory[0] = q.as_quat(scalar_first=True)
+historique_angles = [q.as_euler('ZYX')]
+
+for i in range(1, N):
+    # Calcul du moment dans la base globale
+    torque_global = q.apply(torque_local)
+    # Mise à jour de la vitesse angulaire (Euler direct)
+    omega += np.linalg.inv(I) @ torque_global * dt
 
     # rotation élémentaire sur dt
     dq = R.from_rotvec(omega * dt)
 
     # mise à jour de l'orientation :
-    # q_new = q * dq  → omega exprimé en base locale
     q = q * dq
 
     # stockage
     trajectory[i] = q.as_quat(scalar_first=True)
-
     historique_angles.append(q.as_euler('ZYX'))
 
 # Affichage du dernier quaternion
