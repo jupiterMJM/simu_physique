@@ -44,6 +44,9 @@ class PlotterGUI:
         self.kinetic_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
         self.potential_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
         self.time_current_history = deque(maxlen=self.N*3)
+        self.angle_Z_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
+        self.angle_Y_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
+        self.angle_X_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
         self.all_history = {elt["name"]: np.zeros((self.N, 3)) for key, elt in bodies.items()} # to store trajectory history
         self.num_point = 0
         self.buffer_once_completed = False  # to know if the buffer is filled at least once
@@ -64,17 +67,19 @@ class PlotterGUI:
         g.scale(2, 2, 1)
         self.view.addItem(g)
 
-
-        ## II/ Plot the initial positions of the bodies
-        self.scatter = gl.GLScatterPlotItem(pos=init_pos, color=(1, 0, 0, 1), size=5)
-        self.view.addItem(self.scatter)
-        # Adjust the camera to ensure all points are visible
-        max_extent = np.max(np.linalg.norm(init_pos, axis=1))  # Calculate the maximum distance from origin
-        # maybe not the best way to do it but it works for now
-        if max_extent == 0 or max_extent < self.view.cameraPosition().length():
-            pass
-        else:
-            self.view.setCameraPosition(distance=max_extent * 2, elevation=20, azimuth=30)
+        if self.dict_simu["plotting"] == []:
+            self.dict_simu["plotting"] = ["3D"]
+        if "3D" in self.dict_simu["plotting"]:
+            ## II/ Plot the initial positions of the bodies
+            self.scatter = gl.GLScatterPlotItem(pos=init_pos, color=(1, 0, 0, 1), size=5)
+            self.view.addItem(self.scatter)
+            # Adjust the camera to ensure all points are visible
+            max_extent = np.max(np.linalg.norm(init_pos, axis=1))  # Calculate the maximum distance from origin
+            # maybe not the best way to do it but it works for now
+            if max_extent == 0 or max_extent < self.view.cameraPosition().length():
+                pass
+            else:
+                self.view.setCameraPosition(distance=max_extent * 2, elevation=20, azimuth=30)
 
 
         ## III/ Do the plot of the basis of each body (if needed)
@@ -102,59 +107,87 @@ class PlotterGUI:
 
 
 
-        ## IV/ Plot of trajectories (if needed)
-        if self.plot_traj:
-            self.all_trajectory = {}
-            for i, elt in enumerate(bodies.items()):
-                cle, dico = elt
-                name = dico["name"]
-                self.all_history[name][0, :] = init_pos[i, :]
+            ## IV/ Plot of trajectories (if needed)
+            if self.plot_traj:
+                self.all_trajectory = {}
+                for i, elt in enumerate(bodies.items()):
+                    cle, dico = elt
+                    name = dico["name"]
+                    self.all_history[name][0, :] = init_pos[i, :]
 
-                body_trajectory = gl.GLLinePlotItem(
-                    pos=np.zeros((2, 3)),       # need at least two points to draw the first line
-                    color=(1, 1, 0, 1),
-                    width=2,
-                    antialias=True,
-                    mode="line_strip"
-                )
-                cle, dico = elt
-                self.all_trajectory[dico["name"]] = body_trajectory
+                    body_trajectory = gl.GLLinePlotItem(
+                        pos=np.zeros((2, 3)),       # need at least two points to draw the first line
+                        color=(1, 1, 0, 1),
+                        width=2,
+                        antialias=True,
+                        mode="line_strip"
+                    )
+                    cle, dico = elt
+                    self.all_trajectory[dico["name"]] = body_trajectory
 
-                self.view.addItem(body_trajectory)
+                    self.view.addItem(body_trajectory)
 
+            self.add_cartesian_base()
         ###########################################################################################
 
 
         ###########################################################################################
         ## CREATION OF THE SECOND WINDOW : kinetic energy of the bodies
         ###########################################################################################
+        if "energy" in self.dict_simu["plotting"]:
 
-
-        # Create the second window for kinetic energy
-        self.energy_window = pg.GraphicsLayoutWidget(show=True)
-        self.energy_window.setWindowTitle("Energies of Bodies")
-        self.energy_plot = self.energy_window.addPlot(title="Energies")
-        self.energy_plot.addLegend()
-        self.kinetic_energy_curves = {
-            name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DashLine), name=f"K_{name}")
-            for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
-        }
-        self.potential_energy_curves = {
-            name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DotLine), name=f"P_{name}")
-            for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
-        }
-        self.mechanical_energy_curves = {
-            name: self.energy_plot.plot(pen=pg.mkPen(color), name=f"E_{name}")
-            for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
-        }
-        self.total_mechanical_energy_syst_curve = self.energy_plot.plot(pen=pg.mkPen('w', width=2), name="Total mech. energy")
-        self.energy_plot.setLabel('left', 'Energy', units='J')
-        self.energy_plot.setLabel('bottom', 'Time', units='s')
-        self.energy_plot.showGrid(x=True, y=True)
+            # Create the second window for kinetic energy
+            self.energy_window = pg.GraphicsLayoutWidget(show=True)
+            self.energy_window.setWindowTitle("Energies of Bodies")
+            self.energy_plot = self.energy_window.addPlot(title="Energies")
+            self.energy_plot.addLegend()
+            self.kinetic_energy_curves = {
+                name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DashLine), name=f"K_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.potential_energy_curves = {
+                name: self.energy_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DotLine), name=f"P_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            # TODO determiner what is the difference between mechanical energy and total energy here
+            self.mechanical_energy_curves = {
+                name: self.energy_plot.plot(pen=pg.mkPen(color), name=f"E_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.total_mechanical_energy_syst_curve = self.energy_plot.plot(pen=pg.mkPen('w', width=2), name="Total mech. energy")
+            self.energy_plot.setLabel('left', 'Energy', units='J')
+            self.energy_plot.setLabel('bottom', 'Time', units='s')
+            self.energy_plot.showGrid(x=True, y=True)
 
         ###########################################################################################
 
-        self.add_cartesian_base()
+
+        ###########################################################################################
+        ## CREATION OF THE THIRD WINDOW : euler angle (ZYX) of the bodies
+        ###########################################################################################
+        if "euler_angle" in self.dict_simu["plotting"]:
+            self.angle_window = pg.GraphicsLayoutWidget(show=True)
+            self.angle_window.setWindowTitle("Euler angles of Bodies")
+            self.angle_plot = self.angle_window.addPlot(title="Euler angles")
+            self.angle_plot.addLegend()
+            self.angle_Z_plot = {
+                name: self.angle_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DashLine), name=f"Z_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.angle_Y_plot = {
+                name: self.angle_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DotLine), name=f"Y_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.angle_X_plot = {
+                name: self.angle_plot.plot(pen=pg.mkPen(color), name=f"X_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.angle_plot.setLabel('left', 'Angle', units='deg')
+            self.angle_plot.setLabel('bottom', 'Time', units='s')
+            self.angle_plot.showGrid(x=True, y=True)
+
+        ###########################################################################################
+        
 
         # SOME STUFF left to do
         # Background ZMQ thread
@@ -200,8 +233,13 @@ class PlotterGUI:
             self.buffer_once_completed = True
         self.num_point = self.num_point if self.num_point < self.N else 0
         # and finally update the plots
-        self.update_plot(points_position, basis_matrices_quaternion)
-        self.update_energy_plot()
+        if "3D" in self.dict_simu["plotting"]:
+            self.update_plot(points_position, basis_matrices_quaternion)
+        if "energy" in self.dict_simu["plotting"]:
+            self.update_energy_plot()
+        if "euler_angle" in self.dict_simu["plotting"]:
+            self.update_euler_angle_plot(basis_matrices_quaternion)
+
 
     def update_plot(self, body_position, basis_matrices_quaternion):
         """Called in GUI thread when ZMQ thread emits new data."""
@@ -266,6 +304,25 @@ class PlotterGUI:
         if len(list_for_total_mech_energy) > 0:
             total_mechanical_energy = [sum(energies) for energies in zip(*list_for_total_mech_energy)]
         self.total_mechanical_energy_syst_curve.setData(time_axis, total_mechanical_energy)
+        
+    def update_euler_angle_plot(self, basis_matrix_quaternion):
+        """
+        Update the Euler angle plot with the current basis matrices of the bodies.
+        :param basis_matrices: A dictionary with body names as keys and basis matrices as values.
+        """
+        time_axis = list(self.time_current_history)
+        for i, elt in enumerate(self.dict_simu['objects'].items()):
+            cle, dico = elt
+            name = dico["name"]
+            quaternion = basis_matrix_quaternion[:, i]
+            rotation = R.from_quat(quaternion, scalar_first=True)
+            euler_angles = rotation.as_euler('zyx', degrees=True)
+            self.angle_Z_history[name].append(euler_angles[0])
+            self.angle_Y_history[name].append(euler_angles[1])
+            self.angle_X_history[name].append(euler_angles[2])
+            self.angle_Z_plot[name].setData(time_axis, list(self.angle_Z_history[name]))
+            self.angle_Y_plot[name].setData(time_axis, list(self.angle_Y_history[name]))
+            self.angle_X_plot[name].setData(time_axis, list(self.angle_X_history[name]))
         
 
     def add_cartesian_base(self):

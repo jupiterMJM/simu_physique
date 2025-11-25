@@ -28,5 +28,7 @@
     },
 
     "forces": {
-    }
+    },
+
+    "plotting": ["3D", "euler_angle"]
 }

@@ -63,7 +63,7 @@ class Simulation:
         else:
             with open(json_file, 'r') as f:
                 params = json.load(f)
-
+            self.params_from_file = params
             self.dt = params["parameters"]["dt"]
             self.simulation_time = params["parameters"].get("duration", None)
             self.speed_simulation = params["parameters"].get("speed_simulation", "max")
@@ -267,7 +267,8 @@ class Simulation:
                 "dt": self.dt
             },
             "objects": {body.name: body.repr_json() for body in self.bodies},
-            "forces": {key: params for key, (func, params) in self.forces_to_consider.items()}
+            "forces": {key: params for key, (func, params) in self.forces_to_consider.items()},
+            "plotting": self.params_from_file.get("plotting", {})
         }
         return simu_dict
     
