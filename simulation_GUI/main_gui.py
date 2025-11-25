@@ -21,6 +21,8 @@ from annexe_main_gui import *
 from collections import deque
 
 
+receive_as_array = False
+
 class PlotterGUI:
     def __init__(self, receiver: ZMQReceiver = None, dict_simu=None, plot_traj=False):
         """
@@ -161,35 +163,43 @@ class PlotterGUI:
         self.camera_sync_timer.timeout.connect(self.sync_inset_camera)
         self.camera_sync_timer.start(50)  # toutes les 50 ms
 
-    def update_all_plots(self, matrix_from_zmq):
+    def update_all_plots(self, info_from_zmq):
         """
         this function will allow us to update all the plots in one call
         the main usecase is to save history of positions and speeds more easily
         """
-        # print("update_all_plots called", matrix_from_zmq.shape)
-        # print(matrix_from_zmq)
-        points_position = matrix_from_zmq[0:3, 1:].T
-        points_velocity = matrix_from_zmq[3:6, 1:].T
-        potential_energy_bodies = matrix_from_zmq[6, 1:]
+        
+        if receive_as_array:
+            points_position = info_from_zmq[0:3, 1:].T
+            points_velocity = info_from_zmq[3:6, 1:].T
+            potential_energy_bodies = info_from_zmq[6, 1:]
+            self.time_current_history.append(info_from_zmq[1, 0])
+
+        else: # receive info_from_zmq as a dict
+            points_position = np.array([info_from_zmq["bodies"][name]["position"] for name in self.dict_simu['objects'].keys()])
+            points_velocity = np.array([info_from_zmq["bodies"][name]["velocity"] for name in self.dict_simu['objects'].keys()])
+            potential_energy_bodies = np.array([info_from_zmq["bodies"][name]["potential_energy"] for name in self.dict_simu['objects'].keys()])
+            self.time_current_history.append(info_from_zmq["current_time"])
+
         for i, elt in enumerate(self.dict_simu['objects'].items()):
             cle, dico = elt
             self.all_history[dico["name"]][self.num_point, :] = points_position[i, :]
             self.kinetic_history[dico["name"]].append(0.5 * dico["mass"] * np.sum(points_velocity[i, :]**2))
             self.potential_history[dico["name"]].append(potential_energy_bodies[i])
-        self.time_current_history.append(matrix_from_zmq[1, 0])
+        
         self.num_point = self.num_point + 1
         if self.num_point >= self.N:
             self.buffer_once_completed = True
         self.num_point = self.num_point if self.num_point < self.N else 0
         # and finally update the plots
-        self.update_plot(matrix_from_zmq)
-        self.update_energy_plot(matrix_from_zmq)
+        self.update_plot(points_position)
+        self.update_energy_plot()
 
-    def update_plot(self, matrix_from_zmq):
+    def update_plot(self, body_position):
         """Called in GUI thread when ZMQ thread emits new data."""
-        points = matrix_from_zmq[0:3, 1:].T
+        # points = matrix_from_zmq[0:3, 1:].T
         # print(matrix_from_zmq)
-        self.scatter.setData(pos=points)
+        self.scatter.setData(pos=body_position)
         if self.plot_traj:
             for i, elt in enumerate(self.dict_simu['objects'].items()):
                 # print("elt:", elt)
@@ -208,7 +218,7 @@ class PlotterGUI:
             #     self.buffer_once_completed = True
             # self.num_point = self.num_point if self.num_point < self.N else 0
 
-    def update_energy_plot(self, matrix_from_zmq):
+    def update_energy_plot(self):
         """
         Update the kinetic energy plot with the current velocities of the bodies.
         :param velocities: A dictionary with body names as keys and velocity vectors as values.
@@ -302,7 +312,7 @@ print("Return data socket bound to port 5555.")
 
 time.sleep(1)
 if __name__ == "__main__":
-    receiver = ZMQReceiver()
+    receiver = ZMQReceiver(receive_as_array=receive_as_array)
     print("[Starting] function receiver obtain_info_before_run()")
     json_dict = receiver.obtain_info_before_run()
     print(json_dict)

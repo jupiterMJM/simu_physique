@@ -18,7 +18,7 @@ from zmq import Socket
 import time
 from tqdm import tqdm
 import threading    # to manage the communication in a separate thread (especially for the ping of connection)
-
+import pickle
 
 #############################################################################
 ## USER PARAMETERS
@@ -32,6 +32,7 @@ json_file = r"scenarii_examples\9_toupie.json"
 # "max" means the simulation will run as fast as possible (no waiting time)
 
 verbose=False
+send_in_array = False  # whether to send the data in an array (optimized for ZMQ) or in a dictionary (easier to read)
 
 freq_send_data_zmq = 20  # in Hz
 #############################################################################
@@ -64,7 +65,7 @@ time_last_sent = time.time()
 ## GLOBAL FUNCTION
 ## note : function used to monitor simulation's behavior but not the simulation itself
 #############################################################################
-def generate_message(simu:Simulation):
+def generate_message(simu:Simulation, send_in_array=True):
     """
     this function will generate a message to send through ZMQ
     :param simu: the simulation object (got all the parameters and bodies)
@@ -75,24 +76,36 @@ def generate_message(simu:Simulation):
     then each column will be a body with its parameters (positionx3 and velocityx3 and internal potential energyx1)
     TODO on the first communication think about sending all the information about the bodies (mass, name, ...) but only once
     """
-    msg_array = np.zeros((3+3+1+3*3, len(simu.bodies)+1), dtype='float64')
-    # general parameters
-    msg_array[0, 0] = simu.dt
-    msg_array[1, 0] = simu.current_time
-    msg_array[2, 0] = len(simu.bodies)
+    if send_in_array :
+        msg_array = np.zeros((7, len(simu.bodies)+1), dtype='float64')
+        # general parameters
+        msg_array[0, 0] = simu.dt
+        msg_array[1, 0] = simu.current_time
+        msg_array[2, 0] = len(simu.bodies)
 
-    potential_all_bodies = simu.compute_potentiel_energy()
-    for i, body in enumerate(simu.bodies):
-        # print(body.position.flatten())
-        msg_array[0:3, i+1] = body.position.flatten()
-        msg_array[3:6, i+1] = body.velocity.flatten()
-        msg_array[6, i+1] = potential_all_bodies[body.name]
-        if body.representation == "3D_solid_body":
-            msg_array[7:7+3*3, i+1] = body.initial_basis.flatten()
-        else:
-            msg_array[7:7+3*3, i+1] = np.array([np.nan, np.nan, np.nan])
-    # print("msg_array:", msg_array)
-    return msg_array
+        potential_all_bodies = simu.compute_potentiel_energy()
+        for i, body in enumerate(simu.bodies):
+            # print(body.position.flatten())
+            msg_array[0:3, i+1] = body.position.flatten()
+            msg_array[3:6, i+1] = body.velocity.flatten()
+            msg_array[6, i+1] = potential_all_bodies[body.name]
+        # print("msg_array:", msg_array)
+        return msg_array
+    else:
+        msg_dict = {
+            "dt": simu.dt,
+            "current_time": simu.current_time,
+            "num_bodies": len(simu.bodies),
+            "bodies": {}
+        }
+        potential_all_bodies = simu.compute_potentiel_energy()
+        for body in simu.bodies:
+            msg_dict["bodies"][body.name] = {
+                "position": body.position.flatten().tolist(),
+                "velocity": body.velocity.flatten().tolist(),
+                "potential_energy": float(potential_all_bodies[body.name])
+            }
+        return msg_dict
 
 def heartbeat():
     socket_heartbeat: Socket = context.socket(zmq.PUB)
@@ -124,6 +137,10 @@ def wait_for_client_message():
 
             elif topic == b"control/" and message == b"giveme_info":
                 json_dict = simu.all_info_json()
+                if send_in_array:
+                    json_dict["msg_format"] = "array"
+                else:
+                    json_dict["msg_format"] = "json"
                 socket.send_string("info/", flags=zmq.SNDMORE)
                 socket.send_json(json_dict)
         except zmq.Again:
@@ -161,7 +178,6 @@ simu = Simulation(json_file=json_file)
 # num_steps = int(simulation_time / dt)
 # simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
 
-print(generate_message(simu))
 
 
 # computing the time to wait at each step to get the expected ratio of real time vs simulation time
@@ -204,8 +220,12 @@ try:
         if time.time() - time_last_sent >= 1.0 / freq_send_data_zmq:
             time_last_sent = time.time()
              # Generate and send the message
-            arr = generate_message(simu)
-            socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
+            arr = generate_message(simu, send_in_array=send_in_array)
+            if not send_in_array:   # arr is a json
+                socket.send_string("data/", flags=zmq.SNDMORE)
+                socket.send_json(arr)
+            else:
+                socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
         # if time_to_wait_for_ratio > 0:
         #     time.sleep(time_to_wait_for_ratio)
             
