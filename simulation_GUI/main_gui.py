@@ -47,6 +47,9 @@ class PlotterGUI:
         self.angle_Z_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
         self.angle_Y_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
         self.angle_X_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
+        self.angular_velocity_Z_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
+        self.angular_velocity_Y_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
+        self.angular_velocity_X_history = {name: deque(maxlen=self.N*3) for name in self.dict_simu['objects'].keys()}
         self.all_history = {elt["name"]: np.zeros((self.N, 3)) for key, elt in bodies.items()} # to store trajectory history
         self.num_point = 0
         self.buffer_once_completed = False  # to know if the buffer is filled at least once
@@ -187,6 +190,32 @@ class PlotterGUI:
             self.angle_plot.showGrid(x=True, y=True)
 
         ###########################################################################################
+
+        ###########################################################################################
+        ## CREATION OF THE FORTH WINDOW : angular velocity IN LOCAL BASIS
+        ###########################################################################################
+        if "angular_velocity" in self.dict_simu["plotting"]:
+            self.angular_velocity_window = pg.GraphicsLayoutWidget(show=True)
+            self.angular_velocity_window.setWindowTitle("Angular velocities of Bodies (in their respective local basis)")
+            self.angular_velocity_plot = self.angular_velocity_window.addPlot(title="Angular Velocities")
+            self.angular_velocity_plot.addLegend()
+            self.angular_velocity_Z_plot = {
+                name: self.angular_velocity_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DashLine), name=f"Z_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.angular_velocity_Y_plot = {
+                name: self.angular_velocity_plot.plot(pen=pg.mkPen(color, style=QtCore.Qt.DotLine), name=f"Y_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.angular_velocity_X_plot = {
+                name: self.angular_velocity_plot.plot(pen=pg.mkPen(color), name=f"X_{name}")
+                for name, color in zip(self.dict_simu['objects'].keys(), ['r', 'g', 'b', 'y', 'm', 'c'])
+            }
+            self.angular_velocity_plot.setLabel('left', 'Angle', units='deg')
+            self.angular_velocity_plot.setLabel('bottom', 'Time', units='s')
+            self.angular_velocity_plot.showGrid(x=True, y=True)
+
+        ###########################################################################################
         
 
         # SOME STUFF left to do
@@ -209,6 +238,7 @@ class PlotterGUI:
         """
         
         if receive_as_array:
+            raise Exception("receive_as_array mode not implemented yet in update_all_plots")
             points_position = info_from_zmq[0:3, 1:].T
             points_velocity = info_from_zmq[3:6, 1:].T
             potential_energy_bodies = info_from_zmq[6, 1:]
@@ -221,6 +251,7 @@ class PlotterGUI:
             potential_energy_bodies = np.array([info_from_zmq["bodies"][name]["potential_energy"] for name in self.dict_simu['objects'].keys()])
             basis_matrices_quaternion = np.array([info_from_zmq["bodies"][name]["quaternion"] for name in self.dict_simu['objects'].keys()]).T
             self.time_current_history.append(info_from_zmq["current_time"])
+            angular_velocities_local = np.array([info_from_zmq["bodies"][name]["angular_velocity"] for name in self.dict_simu['objects'].keys()])
 
         for i, elt in enumerate(self.dict_simu['objects'].items()):
             cle, dico = elt
@@ -239,6 +270,10 @@ class PlotterGUI:
             self.update_energy_plot()
         if "euler_angle" in self.dict_simu["plotting"]:
             self.update_euler_angle_plot(basis_matrices_quaternion)
+        if "angular_velocity" in self.dict_simu["plotting"]:
+            # print("im here")
+            self.update_angular_velocity_plot(angular_velocities_local.flatten().tolist())
+
 
 
     def update_plot(self, body_position, basis_matrices_quaternion):
@@ -323,6 +358,23 @@ class PlotterGUI:
             self.angle_Z_plot[name].setData(time_axis, list(self.angle_Z_history[name]))
             self.angle_Y_plot[name].setData(time_axis, list(self.angle_Y_history[name]))
             self.angle_X_plot[name].setData(time_axis, list(self.angle_X_history[name]))
+
+    def update_angular_velocity_plot(self, angular_velocity):
+        """
+        Update the Euler angle plot with the current basis matrices of the bodies.
+        :param basis_matrices: A dictionary with body names as keys and angular_velocity in the local basis as a 3 element list or as 3 element array
+        """
+        # print(angular_velocity)
+        time_axis = list(self.time_current_history)
+        for i, elt in enumerate(self.dict_simu['objects'].items()):
+            cle, dico = elt
+            name = dico["name"]
+            self.angular_velocity_Z_history[name].append(angular_velocity[0])
+            self.angular_velocity_Y_history[name].append(angular_velocity[1])
+            self.angular_velocity_X_history[name].append(angular_velocity[2])
+            self.angular_velocity_Z_plot[name].setData(time_axis, list(self.angular_velocity_Z_history[name]))
+            self.angular_velocity_Y_plot[name].setData(time_axis, list(self.angular_velocity_Y_history[name]))
+            self.angular_velocity_X_plot[name].setData(time_axis, list(self.angular_velocity_X_history[name]))
         
 
     def add_cartesian_base(self):

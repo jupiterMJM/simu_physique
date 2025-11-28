@@ -27,6 +27,7 @@ import json
 import time
 from core_calculation.force_definition_physical_interaction import *
 from scipy.spatial.transform import Rotation as R
+from local_basis import hat
 
 class Simulation:
     """
@@ -149,15 +150,24 @@ class Simulation:
                 body.position += body.velocity * self.dt
 
                 if body.representation == "3D_solid_body":
-                    # torque = np.array([0, 0, 1]).T
-                    torque_local = np.array([0, 0, 0]).T
-                    # it s the derivative of omega => it s the acceleration of the angular basis!!!!!!
-                    body.angular_velocity += np.linalg.inv(body.inertia_matrix) @ (torque_local  # update angular velocity
-                        - np.cross(body.angular_velocity, body.inertia_matrix @ body.angular_velocity)
-                    )*self.dt
-                    dq = R.from_rotvec(body.angular_velocity * self.dt)
-                    body.local_basis._local_basis = dq * body.local_basis._local_basis
-                    # print(body.local_basis.euler_angle)
+                    # I * domega/dt = tau - omega x (I omega)
+                    torque = np.array([0, 0, 0]).T  # placeholder for now
+                    Iomega = body.inertia_matrix @ body.angular_velocity
+                    omega_dot = np.linalg.inv(body.inertia_matrix) @ (torque - np.cross(body.angular_velocity, Iomega))
+                    # intégration explicite d'Euler
+                    body.angular_velocity = body.angular_velocity + omega_dot * self.dt
+                    body.local_basis._local_basis = body.local_basis._local_basis + body.local_basis._local_basis @ hat(body.angular_velocity) * self.dt
+
+                    # DOES NOT WORK, SHOULD INTEGRATE QUATERNION
+                    # # torque = np.array([0, 0, 1]).T
+                    # torque_local = np.array([0, 0, 0]).T
+                    # # it s the derivative of omega => it s the acceleration of the angular basis!!!!!!
+                    # body.angular_velocity += np.linalg.inv(body.inertia_matrix) @ (torque_local  # update angular velocity
+                    #     - np.cross(body.angular_velocity, body.inertia_matrix @ body.angular_velocity)
+                    # )*self.dt
+                    # dq = R.from_rotvec(body.angular_velocity * self.dt)
+                    # body.local_basis._local_basis = dq * body.local_basis._local_basis
+                    # # print(body.local_basis.euler_angle)
 
 
         # # then, we update the position and velocity of each body

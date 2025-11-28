@@ -30,5 +30,5 @@
     "forces": {
     },
 
-    "plotting": ["3D", "euler_angle"]
+    "plotting": ["3D", "angular_velocity"]
 }

@@ -100,4 +100,25 @@ if __name__ == "__main__":
     plt.title('int_with_matrix: Intégration Euler Explicite - Vitesse Angulaire dans la Base Locale')
     plt.legend()
     plt.grid()
+
+    # Calcul des angles d'Euler (ZYX) à partir des matrices de rotation
+    euler_angles = np.zeros((n_steps+1, 3), dtype=float)
+    for i in range(n_steps+1):
+        R = Rs[i]
+        # Extraction des angles ZYX
+        beta = -np.arcsin(R[2, 0])  # angle autour de Y
+        alpha = np.arctan2(R[2, 1] / np.cos(beta), R[2, 2] / np.cos(beta))  # angle autour de Z
+        gamma = np.arctan2(R[1, 0] / np.cos(beta), R[0, 0] / np.cos(beta))  # angle autour de X
+        euler_angles[i] = [alpha, beta, gamma]
+
+    # Affichage des angles d'Euler au cours du temps
+    plt.figure(figsize=(10, 6))
+    plt.plot(time, euler_angles[:, 0], label=r'$\alpha$ (Z)')
+    plt.plot(time, euler_angles[:, 1], label=r'$\beta$ (Y)')
+    plt.plot(time, euler_angles[:, 2], label=r'$\gamma$ (X)')
+    plt.xlabel('Temps [s]')
+    plt.ylabel('Angles d\'Euler [rad]')
+    plt.title('int_with_matrix: Angles d\'Euler (ZYX) au cours du temps')
+    plt.legend()
+    plt.grid()
     plt.show()
