@@ -153,7 +153,7 @@ class Simulation:
                     # I * domega/dt = tau - omega x (I omega)
                     torque = np.array([0, 0, 0]).T  # placeholder for now
                     Iomega = body.inertia_matrix @ body.angular_velocity
-                    omega_dot = np.linalg.inv(body.inertia_matrix) @ (torque - np.cross(body.angular_velocity, Iomega))
+                    omega_dot = body.inv_inertia_matrix @ (torque - np.cross(body.angular_velocity, Iomega))
                     # intégration explicite d'Euler
                     body.angular_velocity = body.angular_velocity + omega_dot * self.dt
                     body.local_basis._local_basis = body.local_basis._local_basis + body.local_basis._local_basis @ hat(body.angular_velocity) * self.dt
@@ -170,40 +170,7 @@ class Simulation:
                     # # print(body.local_basis.euler_angle)
 
 
-        # # then, we update the position and velocity of each body
-        # for body in self.bodies:
-        #     # compute acceleration
-        #     acceleration = forces[body.name] / body.mass
-        #     if verbose: print("[ACCEL]", body.name, acceleration)
-        #     if update_bodies:
-        #         # update position
-        #         if verbose: print(f"[POS UPT] {body.name} from {body.position} to ", end ="")
-        #         body.position = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
-        #         if verbose: print(body.position)
-        #     else:
-        #         # only do the computation but not the update (useful for the benchmark)
-        #         _ = body.position + body.velocity * self.dt + 0.5 * acceleration * self.dt ** 2
 
-        # # compute new forces (for velocity update)
-        # new_forces = self.compute_forces()
-
-        # for body in self.bodies:
-        #     # compute new acceleration
-        #     old_acceleration = forces[body.name] / body.mass
-        #     new_acceleration = new_forces[body.name] / body.mass
-        #     if verbose: print("[NEW ACCEL]", body.name, new_acceleration)
-        #     if update_bodies:
-        #         # update velocity
-        #         if verbose : print(f"[VEL UPT] {body.name} from {body.velocity} to ", end="")
-        #         body.velocity =  body.velocity + (old_acceleration + new_acceleration)/2 * self.dt
-        #         if verbose : print(body.velocity)
-        #         # body.velocity =  body.velocity + acceleration * self.dt
-        #     else:
-        #         # only do the computation but not the update (useful for the benchmark)
-        #         _ = body.velocity +  (old_acceleration + new_acceleration)/2 * self.dt
-        #         # _ = body.velocity +  acceleration * self.dt
-                
-        # # print("x"*10)
 
     def run(self, update_bodies:bool=True, verbose=False, reduce_speed=True):
         """
@@ -278,8 +245,9 @@ class Simulation:
             },
             "objects": {body.name: body.repr_json() for body in self.bodies},
             "forces": {key: params for key, (func, params) in self.forces_to_consider.items()},
-            "plotting": self.params_from_file.get("plotting", {})
+            "plotting": self.params_from_file.get("plotting", [])
         }
+        print("UN TEST", simu_dict["plotting"])
         return simu_dict
     
     def benchmark_step(self, n_steps:int=1000):

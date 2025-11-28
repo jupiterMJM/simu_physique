@@ -86,6 +86,7 @@ class Body:
             # self.quaternion_angular_velocity = 1/2 * quat_mul(self.local_basis.quaternion, np.array([0, *initial_angular_velocity], dtype="float64"))
             # self.inertia_matrix = np.array(inertia_matrix, dtype="float64") if inertia_matrix is not None else np.eye(3)
             self.inertia_matrix = np.array([inertia_matrix["e1"], inertia_matrix["e2"], inertia_matrix["e3"]], dtype="float64").T if inertia_matrix is not None else np.eye(3)
+            self.inv_inertia_matrix = np.linalg.inv(self.inertia_matrix)
         else:
             self.representation = "point_mass"
             if initial_angular_velocity is not None:
@@ -124,7 +125,7 @@ class Body:
         :return: dict, json representation of the body
         """
         if self.representation == "point_mass":
-            base_to_send = np.nan(4).tolist()
+            base_to_send = [np.nan, np.nan, np.nan, np.nan]
         else:
             base_to_send = self.local_basis.quaternion.flatten().tolist()
         return {
@@ -134,8 +135,8 @@ class Body:
                 "init_velocity": self.velocity.flatten().tolist(),
                 "representation": self.representation,
                 "initial_base": base_to_send,
-                "initial_angular_velocity": self.angular_velocity.flatten().tolist() if self.representation == "3D_solid_body" else np.nan(3).tolist(),
-                "inertia_matrix": self.inertia_matrix.flatten().tolist() if self.representation == "3D_solid_body" else np.nan(9).tolist(),
+                "initial_angular_velocity": self.angular_velocity.flatten().tolist() if self.representation == "3D_solid_body" else None,
+                "inertia_matrix": self.inertia_matrix.flatten().tolist() if self.representation == "3D_solid_body" else None,
             }
     
     # @property

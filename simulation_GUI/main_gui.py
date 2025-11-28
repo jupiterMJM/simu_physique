@@ -69,11 +69,13 @@ class PlotterGUI:
         g = gl.GLGridItem()
         g.scale(2, 2, 1)
         self.view.addItem(g)
-
+        print("PUTAIN MAIS JE SUIS LA", self.dict_simu["plotting"])
         if self.dict_simu["plotting"] == []:
             self.dict_simu["plotting"] = ["3D"]
+        print("plotting", self.dict_simu["plotting"])
         if "3D" in self.dict_simu["plotting"]:
             ## II/ Plot the initial positions of the bodies
+            print("INIT POS", init_pos)
             self.scatter = gl.GLScatterPlotItem(pos=init_pos, color=(1, 0, 0, 1), size=5)
             self.view.addItem(self.scatter)
             # Adjust the camera to ensure all points are visible
@@ -249,9 +251,10 @@ class PlotterGUI:
             points_position = np.array([info_from_zmq["bodies"][name]["position"] for name in self.dict_simu['objects'].keys()])
             points_velocity = np.array([info_from_zmq["bodies"][name]["velocity"] for name in self.dict_simu['objects'].keys()])
             potential_energy_bodies = np.array([info_from_zmq["bodies"][name]["potential_energy"] for name in self.dict_simu['objects'].keys()])
-            basis_matrices_quaternion = np.array([info_from_zmq["bodies"][name]["quaternion"] for name in self.dict_simu['objects'].keys()]).T
+            basis_matrices_quaternion = np.array([info_from_zmq["bodies"][name].get("quaternion", None) for name in self.dict_simu['objects'].keys()]).T
+            # basis_matrices_quaternion = np.array([info_from_zmq["bodies"][name]["quaternion"] for name in self.dict_simu['objects'].keys()]).T
             self.time_current_history.append(info_from_zmq["current_time"])
-            angular_velocities_local = np.array([info_from_zmq["bodies"][name]["angular_velocity"] for name in self.dict_simu['objects'].keys()])
+            angular_velocities_local = np.array([info_from_zmq["bodies"][name].get("angular_velocity", None) for name in self.dict_simu['objects'].keys()])
 
         for i, elt in enumerate(self.dict_simu['objects'].items()):
             cle, dico = elt
@@ -349,6 +352,8 @@ class PlotterGUI:
         for i, elt in enumerate(self.dict_simu['objects'].items()):
             cle, dico = elt
             name = dico["name"]
+            if self.dict_simu['objects'][cle]['representation'] != "3D_solid_body":
+                continue
             quaternion = basis_matrix_quaternion[:, i]
             rotation = R.from_quat(quaternion, scalar_first=True)
             euler_angles = rotation.as_euler('zyx', degrees=True)
@@ -369,6 +374,8 @@ class PlotterGUI:
         for i, elt in enumerate(self.dict_simu['objects'].items()):
             cle, dico = elt
             name = dico["name"]
+            if self.dict_simu['objects'][cle]['representation'] != "3D_solid_body":
+                continue
             self.angular_velocity_Z_history[name].append(angular_velocity[0])
             self.angular_velocity_Y_history[name].append(angular_velocity[1])
             self.angular_velocity_X_history[name].append(angular_velocity[2])
