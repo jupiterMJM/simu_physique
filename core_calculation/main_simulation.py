@@ -24,7 +24,7 @@ import pickle
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-json_file = r"scenarii_examples\8_three_stars_system.json"
+json_file = r"scenarii_examples\7_earth_and_moon.json"
 # dt and time_simulation are defined in the json file
 
 # speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
@@ -76,8 +76,10 @@ def generate_message(simu:Simulation, send_in_array=True):
     then each column will be a body with its parameters (positionx3 and velocityx3 and internal potential energyx1)
     TODO on the first communication think about sending all the information about the bodies (mass, name, ...) but only once
     """
+    
     if send_in_array :
-        msg_array = np.zeros((7, len(simu.bodies)+1), dtype='float64')
+        # 3 for position, 3 for velocity, 1 for potential energy, 4 for quaternion elements
+        msg_array = np.zeros((3+3+1+4, len(simu.bodies)+1), dtype='float64')
         # general parameters
         msg_array[0, 0] = simu.dt
         msg_array[1, 0] = simu.current_time
@@ -89,6 +91,10 @@ def generate_message(simu:Simulation, send_in_array=True):
             msg_array[0:3, i+1] = body.position.flatten()
             msg_array[3:6, i+1] = body.velocity.flatten()
             msg_array[6, i+1] = potential_all_bodies[body.name]
+        if body.representation == "3D_solid_body":
+            msg_array[7:7+4, i+1] = body.local_basis.quaternion.flatten()
+        else:
+            msg_array[7:7+4, i+1] = np.array([np.nan, np.nan, np.nan])
         # print("msg_array:", msg_array)
         return msg_array
     else:
@@ -103,8 +109,11 @@ def generate_message(simu:Simulation, send_in_array=True):
             msg_dict["bodies"][body.name] = {
                 "position": body.position.flatten().tolist(),
                 "velocity": body.velocity.flatten().tolist(),
-                "potential_energy": float(potential_all_bodies[body.name])
+                "potential_energy": float(potential_all_bodies[body.name]),
+                "angular_velocity": body.angular_velocity.flatten().tolist() if body.representation == "3D_solid_body" else [np.nan, np.nan, np.nan],
             }
+            if body.representation == "3D_solid_body":
+                msg_dict["bodies"][body.name]["quaternion"] = body.local_basis.quaternion.flatten().tolist()
         return msg_dict
 
 def heartbeat():
