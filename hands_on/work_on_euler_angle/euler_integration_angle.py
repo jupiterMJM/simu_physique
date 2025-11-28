@@ -47,6 +47,7 @@ for i in range(1, N):
 
     # mise à jour de l'orientation :
     q = q * dq
+    # q = dq * q
 
     # stockage
     trajectory[i] = q.as_quat(scalar_first=True)
@@ -79,7 +80,7 @@ plt.plot(np.arange(N)*dt, derivatives[:, 1], label="d(Pitch)/dt (Y)")
 plt.plot(np.arange(N)*dt, derivatives[:, 2], label="d(Roll)/dt (X)")
 plt.xlabel('Temps (s)')
 plt.ylabel('Vitesse angulaire (rad/s)')
-plt.title("Dérivées des angles d'Euler au cours du temps")
+plt.title("euler_int_angle: Dérivées des angles d'Euler au cours du temps")
 plt.legend()
 plt.grid()
 
