@@ -2,7 +2,7 @@
     "parameters": {
         "dt": 0.001,
         "duration": 10,
-        "speed_simulation" : "max"
+        "speed_simulation" : 1
     },
 
 

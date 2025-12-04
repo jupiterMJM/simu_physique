@@ -102,7 +102,7 @@ class Simulation:
                         point2 = np.array(point2, dtype='float64')
                     class_force_params["point2"] = point2
                     class_force = eval(class_name)(**class_force_params)
-                    print(class_force)
+                    # print(class_force)
                     self.class_forces_to_consider.append(class_force)
 
 

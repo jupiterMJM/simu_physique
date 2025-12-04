@@ -24,7 +24,7 @@ import pickle
 ## USER PARAMETERS
 ## note: change here to modify behaviour of the calculation
 #############################################################################
-json_file = r"scenarii_examples\7_earth_and_moon.json"
+json_file = r"scenarii_examples\6_three_bodies_spring.json"
 # dt and time_simulation are defined in the json file
 
 # speed_simulation = 1000000 # expected ratio of real time vs simulation time (e.g. 2 means the simulation will run twice faster than real time)
@@ -35,6 +35,7 @@ verbose=False
 send_in_array = False  # whether to send the data in an array (optimized for ZMQ) or in a dictionary (easier to read)
 
 freq_send_data_zmq = 20  # in Hz
+use_zmq = True  # whether to use ZMQ to send data or not, not using ZMQ should increase performance a bit
 #############################################################################
 
 
@@ -178,65 +179,75 @@ def wait_for_user_input():
 ## MAIN CODE
 ## note: this is where the simulation is defined and run
 #############################################################################
+print(
+"""
+███████╗██╗███╗   ███╗██████╗ ██╗  ██╗██╗   ██╗
+██╔════╝██║████╗ ████║██╔══██╗██║  ██║╚██╗ ██╔╝
+███████╗██║██╔████╔██║██████╔╝███████║ ╚████╔╝ 
+╚════██║██║██║╚██╔╝██║██╔═══╝ ██╔══██║  ╚██╔╝  
+██████╔╝██║██║ ╚═╝ ██║██║     ██║  ██║   ██║   
+╚═════╝ ╚═╝╚═╝     ╚═╝╚═╝     ╚═╝  ╚═╝   ╚═╝
+Welcome in this physics simulation engine! This program will run a simulation based on the provided json file.
+To plot in real time the simulation, please use the main_gui.py program.
+You can stop the simulation at any time by pressing Ctrl+C.
+Program developed by Maxence BARRE, 2025.
+"""
+)
+time.sleep(1)
+
 
 # # DEFINITION OF THE SIMULATION
-# # defining simulation parameters
 simu = Simulation(json_file=json_file)
-# simulation_time = simu.simulation_time
-# dt = simu.dt
-# num_steps = int(simulation_time / dt)
-# simu = Simulation(bodies=bodies, dt=dt, forces_to_consider=[gravitational_force])
-
-
-
-# computing the time to wait at each step to get the expected ratio of real time vs simulation time
-# if speed_simulation == "max":
-#     time_to_wait_for_ratio = 0
-# else:
-#     aim_time_per_step = simu.dt / speed_simulation
-#     actual_time_per_step = simu.benchmark_step()
-#     time_to_wait_for_ratio = max(aim_time_per_step - actual_time_per_step, 0)
+print(f"[INFO] Simulation loaded from {json_file} with {len(simu.bodies)} bodies.")
+# # print some information about the simulation
+print(
+f"""
+- Simulation time: {simu.simulation_time} seconds with a dt of {simu.dt} seconds
+- ZMQ communication: {'enabled' if use_zmq else 'DISABLED'}, {'array format' if send_in_array else 'json format'}, sending data at {freq_send_data_zmq} Hz
+- {len(simu.bodies)} bodies defined: [{', '.join([f'{body.name} ({body.representation})' for body in simu.bodies])}]
+- Forces defined: [{', '.join([force for force in simu.forces_to_consider])}]
+"""
+)
 
 # START HEARTBEAT THREAD
-thread_hb = threading.Thread(target=heartbeat, daemon=True).start()
+if use_zmq:
+    thread_hb = threading.Thread(target=heartbeat, daemon=True).start()
 
-# WAITING FOR THE START COMMAND
-# condition before beginning the simulation : either the user start in the main simulation cmd or in the zmq-client cmd
-# Wait until the simulation is triggered
-try:
-    client_thread = threading.Thread(target=wait_for_client_message, daemon=True)
-    input_thread = threading.Thread(target=wait_for_user_input, daemon=True)
-    client_thread.start()
-    input_thread.start()
-    start_simulation.wait()
-except KeyboardInterrupt:
-    print("[INFO] Simulation interrupted by user before starting.")
-    do_heartbeat = False
-    start_simulation.set()  # Ensure any waiting threads can proceed
-    time.sleep(2)
-    socket.close()
-    sub_socket.close()
-    time.sleep(1)
-    context.term()
-    time.sleep(2)
-    sys.exit(0)
+    # WAITING FOR THE START COMMAND
+    # condition before beginning the simulation : either the user start in the main simulation cmd or in the zmq-client cmd
+    # Wait until the simulation is triggered
+    try:
+        client_thread = threading.Thread(target=wait_for_client_message, daemon=True)
+        input_thread = threading.Thread(target=wait_for_user_input, daemon=True)
+        client_thread.start()
+        input_thread.start()
+        start_simulation.wait()
+    except KeyboardInterrupt:
+        print("[INFO] Simulation interrupted by user before starting.")
+        do_heartbeat = False
+        start_simulation.set()  # Ensure any waiting threads can proceed
+        time.sleep(2)
+        socket.close()
+        sub_socket.close()
+        time.sleep(1)
+        context.term()
+        time.sleep(2)
+        sys.exit(0)
 
 # RUN THE SIMULATION
 try:
     simulation_is_running = True
     for _ in simu.run():
-        # input()
-        if time.time() - time_last_sent >= 1.0 / freq_send_data_zmq:
-            time_last_sent = time.time()
-             # Generate and send the message
-            arr = generate_message(simu, send_in_array=send_in_array)
-            if not send_in_array:   # arr is a json
-                socket.send_string("data/", flags=zmq.SNDMORE)
-                socket.send_json(arr)
-            else:
-                socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
-        # if time_to_wait_for_ratio > 0:
-        #     time.sleep(time_to_wait_for_ratio)
+        if use_zmq:
+            if time.time() - time_last_sent >= 1.0 / freq_send_data_zmq:
+                time_last_sent = time.time()
+                # Generate and send the message
+                arr = generate_message(simu, send_in_array=send_in_array)
+                if not send_in_array:   # arr is a json
+                    socket.send_string("data/", flags=zmq.SNDMORE)
+                    socket.send_json(arr)
+                else:
+                    socket.send_multipart([b"data/", memoryview(arr)])  # Send the array without copying
             
             
 except KeyboardInterrupt:
@@ -244,15 +255,16 @@ except KeyboardInterrupt:
     print("[INFO] Closing the ZMQ connection.")
     
 finally:
-    socket.send_multipart([b"control/", b"shutdown"])
-    socket.setsockopt(zmq.LINGER, 5000)  # waiting for everything to be sent
-    socket.close() # Close the socket
+    if use_zmq:
+        socket.send_multipart([b"control/", b"shutdown"])
+        socket.setsockopt(zmq.LINGER, 5000)  # waiting for everything to be sent
+        socket.close() # Close the socket
 
-    sub_socket.close()
-    do_heartbeat = False
-    hear_for_client = False
-    time.sleep(2)
-    # thread should be closed automatically by now
+        sub_socket.close()
+        do_heartbeat = False
+        hear_for_client = False
+        time.sleep(2)
+        # thread should be closed automatically by now
 
-    context.term()  # Terminate the ZMQ context
+        context.term()  # Terminate the ZMQ context
     print("[INFO] ZMQ connection closed.")

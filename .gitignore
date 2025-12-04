@@ -1,3 +1,4 @@
 *.pyc
 benchmark/report*
 hands_on/__marimo__/*
+poetry.lock
